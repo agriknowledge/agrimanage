@@ -627,7 +627,9 @@ export default function Page() {
   style={{ objectFit: "contain", display: "block", marginBottom: 10 }}
 />
 </div>
-        <div style={styles.tagline}>Flower Farm Manager</div>
+        <div style={{ ...styles.tagline, textAlign: "center" }}>
+  Flower Farm Manager
+</div>
 
         {[
           ["dashboard", "Dashboard"],
