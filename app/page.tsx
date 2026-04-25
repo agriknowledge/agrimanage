@@ -618,7 +618,13 @@ export default function Page() {
   return (
     <main style={styles.page}>
       <aside style={styles.sidebar}>
-        <div style={styles.logo}>AgriManage™</div>
+        <div style={styles.logo}>
+  <img
+    src="/logo.png"
+    alt="AgriManage logo"
+    style={{ height: 50 }}
+  />
+</div>
         <div style={styles.tagline}>Flower Farm Manager</div>
 
         {[
