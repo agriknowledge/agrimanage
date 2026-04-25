@@ -621,7 +621,7 @@ export default function Page() {
         <div style={styles.logo}>
   <div style={{ textAlign: "center", marginBottom: 20 }}>
   <img
-    src="/logo.png"
+    src="/agrimanage-logo.png"
     alt=""
     width={160}
     height={80}
