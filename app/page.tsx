@@ -620,7 +620,7 @@ export default function Page() {
       <aside style={styles.sidebar}>
         <div style={styles.logo}>
   <img
-  src="/logo.png"
+  src="/agrimanage-logo.png"
   alt=""
   width={160}
   height={80}
