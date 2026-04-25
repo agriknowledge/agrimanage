@@ -619,15 +619,16 @@ export default function Page() {
     <main style={styles.page}>
       <aside style={styles.sidebar}>
         <div style={styles.logo}>
+  <div style={{ textAlign: "center", marginBottom: 20 }}>
   <img
-  src="/agrimanage-logo.png"
-  alt=""
-  width={160}
-  height={80}
-  style={{ objectFit: "contain", display: "block", marginBottom: 10 }}
-/>
+    src="/logo.png"
+    alt=""
+    width={160}
+    height={80}
+    style={{ objectFit: "contain", margin: "0 auto 10px auto" }}
+  />
+  <div style={styles.tagline}>Flower Farm Manager</div>
 </div>
-        <div style={{ ...styles.tagline, textAlign: "center" }}>
   Flower Farm Manager
 </div>
 
