@@ -620,10 +620,12 @@ export default function Page() {
       <aside style={styles.sidebar}>
         <div style={styles.logo}>
   <img
-    src="/logo.png"
-    alt=""
-    style={{ height: 50 }}
-  />
+  src="/logo.png"
+  alt=""
+  width={160}
+  height={80}
+  style={{ objectFit: "contain", display: "block", marginBottom: 10 }}
+/>
 </div>
         <div style={styles.tagline}>Flower Farm Manager</div>
 
