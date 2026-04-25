@@ -621,7 +621,7 @@ export default function Page() {
         <div style={styles.logo}>
   <img
     src="/logo.png"
-    alt="AgriManage logo"
+    alt=""
     style={{ height: 50 }}
   />
 </div>
