@@ -192,11 +192,31 @@ function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function money(value: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
   }).format(value || 0);
+}
+
+function csvEscape(value: string | number) {
+  const text = String(value ?? "");
+  return `"${text.replaceAll('"', '""')}"`;
+}
+
+function downloadCSV(filename: string, rows: (string | number)[][]) {
+  const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function guessScheduleFCategory(category: ExpenseCategory): ScheduleFCategory {
@@ -210,70 +230,24 @@ function guessScheduleFCategory(category: ExpenseCategory): ScheduleFCategory {
   if (category === "Insurance") return "Insurance";
   if (category === "Equipment") return "Depreciation";
   if (category === "Mileage") return "Car and truck expenses";
-  if (category === "Market Fees") return "Other expenses";
   if (category === "Packaging") return "Supplies";
-  if (category === "Advertising") return "Other expenses";
   return "Other expenses";
 }
 
-function guessExpenseCategory(text: string): ExpenseCategory {
-  const value = text.toLowerCase();
-  if (/(seed|plug|plant|bulb|tuber|root|zinnia|snapdragon|flower)/.test(value)) return "Seeds/Plants";
-  if (/(soil|compost|fertilizer|lime|peat|potting|amendment)/.test(value)) return "Soil/Fertilizer";
-  if (/(fungicide|herbicide|pesticide|insect|disease|mildew|spray)/.test(value)) return "Pest/Disease Control";
-  if (/(fuel|gas|diesel|oil|propane)/.test(value)) return "Fuel";
-  if (/(electric|water|utility|internet|phone)/.test(value)) return "Utilities";
-  if (/(labor|payroll|wage|employee|contractor|helper)/.test(value)) return "Labor";
-  if (/(repair|maintenance|parts|service|fix)/.test(value)) return "Repairs";
-  if (/(box|sleeve|label|packaging|bucket|wrap)/.test(value)) return "Packaging";
-  if (/(market|booth|vendor fee|stall)/.test(value)) return "Market Fees";
-  if (/(insurance|policy|premium)/.test(value)) return "Insurance";
-  if (/(equipment|tool|tractor|tiller|mower|cooler|greenhouse|hoop)/.test(value)) return "Equipment";
-  if (/(ad|advertising|facebook|marketing|website|sign)/.test(value)) return "Advertising";
-  if (/(mile|mileage|truck|vehicle)/.test(value)) return "Mileage";
-  return "Other";
-}
-
 function guessTaxCategory(category: ExpenseCategory): TaxCategory {
-  if (category === "Utilities") return "Utilities";
+  if (category === "Seeds/Plants") return "Supplies";
+  if (category === "Soil/Fertilizer") return "Supplies";
+  if (category === "Pest/Disease Control") return "Supplies";
   if (category === "Fuel") return "Fuel";
-  if (category === "Repairs") return "Repairs & Maintenance";
+  if (category === "Utilities") return "Utilities";
   if (category === "Labor") return "Labor";
-  if (category === "Advertising") return "Advertising";
+  if (category === "Repairs") return "Repairs & Maintenance";
   if (category === "Insurance") return "Insurance";
   if (category === "Equipment") return "Equipment";
   if (category === "Mileage") return "Mileage";
+  if (category === "Advertising") return "Advertising";
   if (category === "Market Fees") return "Fees";
-  if (category === "Other") return "Other";
-  return "Supplies";
-}
-
-function guessIncomeCategory(text: string): IncomeCategory {
-  const value = text.toLowerCase();
-  if (/(wholesale|florist|restaurant|retail shop)/.test(value)) return "Wholesale";
-  if (/(tour|u-pick|upick|photo|photography|event)/.test(value)) return "Agritourism";
-  if (/(workshop|class|education|training)/.test(value)) return "Workshops";
-  if (/(subscription|csa|bouquet club|membership)/.test(value)) return "Subscriptions";
-  if (/(market|farmers market|sale|bouquet|flower)/.test(value)) return "Market Sales";
   return "Other";
-}
-
-function csvEscape(value: string | number) {
-  const textValue = String(value ?? "");
-  return `"${textValue.replaceAll('"', '""')}"`;
-}
-
-function downloadCsv(filename: string, rows: Array<Array<string | number>>) {
-  const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
 }
 
 export default function Page() {
@@ -314,7 +288,7 @@ export default function Page() {
   const [expenseForm, setExpenseForm] = useState<ExpenseRecord>({
     id: "",
     projectId: "",
-    date: "",
+    date: today(),
     vendor: "",
     item: "",
     amount: 0,
@@ -327,11 +301,11 @@ export default function Page() {
   const [incomeForm, setIncomeForm] = useState<IncomeRecord>({
     id: "",
     projectId: "",
-    date: "",
+    date: today(),
     source: "",
     description: "",
     amount: 0,
-    category: incomeCategories[0],
+    category: "Market Sales",
     scheduleFCategory: "Other expenses",
     notes: "",
   });
@@ -345,29 +319,27 @@ export default function Page() {
     category: "Utilities",
     taxCategory: "Utilities",
     scheduleFCategory: "Utilities",
-    nextDue: "",
+    nextDue: today(),
     notes: "",
   });
 
   const [noteForm, setNoteForm] = useState<FarmNote>({
     id: "",
     projectId: "",
-    date: "",
+    date: today(),
     title: "",
     type: "General",
     note: "",
   });
 
   useEffect(() => {
-    const storedProjects = localStorage.getItem("agrimanage™_projects");
-    const storedSelectedProjectId = localStorage.getItem(
-      "agrimanage™_selected_project"
-    );
-    const storedExpenses = localStorage.getItem("agrimanage™_expenses");
-    const storedIncome = localStorage.getItem("agrimanage™_income");
-    const storedRecurring = localStorage.getItem("agrimanage™_recurring");
-    const storedNotes = localStorage.getItem("agrimanage™_notes");
-    const storedChat = localStorage.getItem("agrimanage™_chat");
+    const storedProjects = localStorage.getItem("agrimanage_projects");
+    const storedSelectedProjectId = localStorage.getItem("agrimanage_selected_project");
+    const storedExpenses = localStorage.getItem("agrimanage_expenses");
+    const storedIncome = localStorage.getItem("agrimanage_income");
+    const storedRecurring = localStorage.getItem("agrimanage_recurring");
+    const storedNotes = localStorage.getItem("agrimanage_notes");
+    const storedChat = localStorage.getItem("agrimanage_chat");
 
     if (storedProjects) setProjects(JSON.parse(storedProjects));
     if (storedSelectedProjectId) setSelectedProjectId(storedSelectedProjectId);
@@ -375,11 +347,17 @@ export default function Page() {
     if (storedExpenses) {
       const parsed: ExpenseRecord[] = JSON.parse(storedExpenses).map(
         (item: Partial<ExpenseRecord>) => ({
-          ...item,
+          id: item.id || uid(),
           projectId: item.projectId || "",
+          date: item.date || today(),
+          vendor: item.vendor || "",
+          item: item.item || "",
+          amount: Number(item.amount || 0),
+          category: item.category || "Other",
+          taxCategory: item.taxCategory || guessTaxCategory(item.category || "Other"),
           scheduleFCategory:
-            item.scheduleFCategory ||
-            guessScheduleFCategory(item.category || "Other"),
+            item.scheduleFCategory || guessScheduleFCategory(item.category || "Other"),
+          notes: item.notes || "",
         })
       );
       setExpenses(parsed);
@@ -388,9 +366,15 @@ export default function Page() {
     if (storedIncome) {
       const parsed: IncomeRecord[] = JSON.parse(storedIncome).map(
         (item: Partial<IncomeRecord>) => ({
-          ...item,
+          id: item.id || uid(),
           projectId: item.projectId || "",
+          date: item.date || today(),
+          source: item.source || "",
+          description: item.description || "",
+          amount: Number(item.amount || 0),
+          category: item.category || "Market Sales",
           scheduleFCategory: item.scheduleFCategory || "Other expenses",
+          notes: item.notes || "",
         })
       );
       setIncome(parsed);
@@ -399,11 +383,17 @@ export default function Page() {
     if (storedRecurring) {
       const parsed: RecurringCost[] = JSON.parse(storedRecurring).map(
         (item: Partial<RecurringCost>) => ({
-          ...item,
+          id: item.id || uid(),
           projectId: item.projectId || "",
+          name: item.name || "",
+          amount: Number(item.amount || 0),
+          frequency: item.frequency || "Monthly",
+          category: item.category || "Other",
+          taxCategory: item.taxCategory || guessTaxCategory(item.category || "Other"),
           scheduleFCategory:
-            item.scheduleFCategory ||
-            guessScheduleFCategory(item.category || "Other"),
+            item.scheduleFCategory || guessScheduleFCategory(item.category || "Other"),
+          nextDue: item.nextDue || today(),
+          notes: item.notes || "",
         })
       );
       setRecurringCosts(parsed);
@@ -412,8 +402,12 @@ export default function Page() {
     if (storedNotes) {
       const parsed: FarmNote[] = JSON.parse(storedNotes).map(
         (item: Partial<FarmNote>) => ({
-          ...item,
+          id: item.id || uid(),
           projectId: item.projectId || "",
+          date: item.date || today(),
+          title: item.title || "",
+          type: item.type || "General",
+          note: item.note || "",
         })
       );
       setFarmNotes(parsed);
@@ -423,34 +417,31 @@ export default function Page() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("agrimanage™_projects", JSON.stringify(projects));
+    localStorage.setItem("agrimanage_projects", JSON.stringify(projects));
   }, [projects]);
 
   useEffect(() => {
-    localStorage.setItem(
-      "agrimanage™_selected_project",
-      selectedProjectId || "all"
-    );
+    localStorage.setItem("agrimanage_selected_project", selectedProjectId || "all");
   }, [selectedProjectId]);
 
   useEffect(() => {
-    localStorage.setItem("agrimanage™_expenses", JSON.stringify(expenses));
+    localStorage.setItem("agrimanage_expenses", JSON.stringify(expenses));
   }, [expenses]);
 
   useEffect(() => {
-    localStorage.setItem("agrimanage™_income", JSON.stringify(income));
+    localStorage.setItem("agrimanage_income", JSON.stringify(income));
   }, [income]);
 
   useEffect(() => {
-    localStorage.setItem("agrimanage™_recurring", JSON.stringify(recurringCosts));
+    localStorage.setItem("agrimanage_recurring", JSON.stringify(recurringCosts));
   }, [recurringCosts]);
 
   useEffect(() => {
-    localStorage.setItem("agrimanage™_notes", JSON.stringify(farmNotes));
+    localStorage.setItem("agrimanage_notes", JSON.stringify(farmNotes));
   }, [farmNotes]);
 
   useEffect(() => {
-    localStorage.setItem("agrimanage™_chat", JSON.stringify(chat));
+    localStorage.setItem("agrimanage_chat", JSON.stringify(chat));
   }, [chat]);
 
   useEffect(() => {
@@ -482,8 +473,7 @@ export default function Page() {
   }, [farmNotes, selectedProjectId]);
 
   const totalExpenses = useMemo(
-    () =>
-      filteredExpenses.reduce((sum, item) => sum + Number(item.amount || 0), 0),
+    () => filteredExpenses.reduce((sum, item) => sum + Number(item.amount || 0), 0),
     [filteredExpenses]
   );
 
@@ -529,62 +519,6 @@ export default function Page() {
     return match ? match.name : "Unknown Project";
   }
 
-
-  function exportExpensesCsv() {
-    downloadCsv("agrimanage-expenses.csv", [
-      [
-        "Date",
-        "Project",
-        "Vendor",
-        "Item",
-        "Amount",
-        "Expense Category",
-        "General Tax Category",
-        "Schedule F Category",
-        "Notes",
-      ],
-      ...filteredExpenses.map((item) => [
-        item.date,
-        projectName(item.projectId),
-        item.vendor,
-        item.item,
-        item.amount,
-        item.category,
-        item.taxCategory,
-        item.scheduleFCategory,
-        item.notes,
-      ]),
-    ]);
-  }
-
-  function exportIncomeCsv() {
-    downloadCsv("agrimanage-income.csv", [
-      ["Date", "Project", "Source", "Description", "Amount", "Income Category", "Schedule F Category", "Notes"],
-      ...filteredIncome.map((item) => [
-        item.date,
-        projectName(item.projectId),
-        item.source,
-        item.description,
-        item.amount,
-        item.category,
-        item.scheduleFCategory,
-        item.notes,
-      ]),
-    ]);
-  }
-
-  function exportScheduleFCsv() {
-    downloadCsv("agrimanage-schedule-f-summary.csv", [
-      ["Schedule F Category", "Total"],
-      ...Object.entries(scheduleFSummary).map(([category, value]) => [category, value]),
-      ["", ""],
-      ["Total Income", totalIncome],
-      ["Total Expenses", totalExpenses],
-      ["Net", net],
-      ["Estimated Monthly Recurring", estimatedMonthlyRecurring],
-    ]);
-  }
-
   function addProject() {
     if (!projectForm.name.trim()) return;
     const newProject: Project = {
@@ -624,24 +558,11 @@ export default function Page() {
 
   function addExpense() {
     if (!expenseForm.date || !expenseForm.vendor || !expenseForm.item) return;
-
-    const autoCategory = guessExpenseCategory(
-      `${expenseForm.vendor} ${expenseForm.item} ${expenseForm.notes}`
-    );
-    const autoTaxCategory = guessTaxCategory(autoCategory);
-    setExpenses((prev) => [
-      {
-        ...expenseForm,
-        id: uid(),
-        category: autoCategory,
-        taxCategory: autoTaxCategory,
-      },
-      ...prev,
-    ]);
+    setExpenses((prev) => [{ ...expenseForm, id: uid() }, ...prev]);
     setExpenseForm({
       id: "",
       projectId: selectedProjectId === "all" ? "" : selectedProjectId,
-      date: "",
+      date: today(),
       vendor: "",
       item: "",
       amount: 0,
@@ -654,23 +575,15 @@ export default function Page() {
 
   function addIncome() {
     if (!incomeForm.date || !incomeForm.source || !incomeForm.description) return;
-
-    const autoCategory = guessIncomeCategory(
-      `${incomeForm.source} ${incomeForm.description} ${incomeForm.notes}`
-    );
-
-    setIncome((prev) => [
-      { ...incomeForm, id: uid(), category: autoCategory },
-      ...prev,
-    ]);
+    setIncome((prev) => [{ ...incomeForm, id: uid() }, ...prev]);
     setIncomeForm({
       id: "",
       projectId: selectedProjectId === "all" ? "" : selectedProjectId,
-      date: "",
+      date: today(),
       source: "",
       description: "",
       amount: 0,
-      category: incomeCategories[0],
+      category: "Market Sales",
       scheduleFCategory: "Other expenses",
       notes: "",
     });
@@ -688,7 +601,7 @@ export default function Page() {
       category: "Utilities",
       taxCategory: "Utilities",
       scheduleFCategory: "Utilities",
-      nextDue: "",
+      nextDue: today(),
       notes: "",
     });
   }
@@ -699,11 +612,75 @@ export default function Page() {
     setNoteForm({
       id: "",
       projectId: selectedProjectId === "all" ? "" : selectedProjectId,
-      date: "",
+      date: today(),
       title: "",
       type: "General",
       note: "",
     });
+  }
+
+  function exportExpensesCSV() {
+    downloadCSV("agrimanage-expenses.csv", [
+      [
+        "Date",
+        "Project",
+        "Vendor",
+        "Item or Description",
+        "Amount",
+        "Expense Category",
+        "Tax Category",
+        "Schedule F Category",
+        "Notes",
+      ],
+      ...filteredExpenses.map((item) => [
+        item.date,
+        projectName(item.projectId),
+        item.vendor,
+        item.item,
+        item.amount,
+        item.category,
+        item.taxCategory,
+        item.scheduleFCategory,
+        item.notes,
+      ]),
+    ]);
+  }
+
+  function exportIncomeCSV() {
+    downloadCSV("agrimanage-income.csv", [
+      [
+        "Date",
+        "Project",
+        "Source",
+        "Description",
+        "Amount",
+        "Income Category",
+        "Schedule F Category",
+        "Notes",
+      ],
+      ...filteredIncome.map((item) => [
+        item.date,
+        projectName(item.projectId),
+        item.source,
+        item.description,
+        item.amount,
+        item.category,
+        item.scheduleFCategory,
+        item.notes,
+      ]),
+    ]);
+  }
+
+  function exportScheduleFCSV() {
+    downloadCSV("agrimanage-schedule-f-summary.csv", [
+      ["Current Project Filter", selectedProjectId === "all" ? "All Projects" : projectName(selectedProjectId)],
+      ["Total Income", totalIncome],
+      ["Total Expenses", totalExpenses],
+      ["Net", net],
+      [],
+      ["Schedule F Category", "Total"],
+      ...Object.entries(scheduleFSummary).map(([category, total]) => [category, total]),
+    ]);
   }
 
   async function askAI() {
@@ -749,7 +726,8 @@ export default function Page() {
         ...prev,
         {
           role: "assistant",
-          content: "There was an error contacting the AI route.",
+          content:
+            "There was an error contacting the AI route. Your records are still saved locally.",
         },
       ]);
     } finally {
@@ -757,13 +735,24 @@ export default function Page() {
     }
   }
 
+  const navItems: Array<[typeof activeTab, string]> = [
+    ["home", "Home"],
+    ["dashboard", "Dashboard"],
+    ["projects", "Projects"],
+    ["expenses", "Expenses"],
+    ["income", "Income"],
+    ["recurring", "Recurring Costs"],
+    ["notes", "Farm Notes"],
+    ["ai", "AI Assistant"],
+  ];
+
   return (
     <main style={styles.page}>
       <style jsx global>{`
         @keyframes fadeInLanding {
           from {
             opacity: 0;
-            transform: translateY(14px);
+            transform: translateY(16px);
           }
           to {
             opacity: 1;
@@ -776,7 +765,7 @@ export default function Page() {
             transform: translateY(0) scale(1);
           }
           50% {
-            transform: translateY(-6px) scale(1.015);
+            transform: translateY(-5px) scale(1.015);
           }
         }
 
@@ -787,36 +776,29 @@ export default function Page() {
         button:hover {
           transform: translateY(-1px);
         }
-      `}</style>
-      <aside style={styles.sidebar}>
-        <div style={styles.logo}>
-  <div style={{ textAlign: "center", marginBottom: 20 }}>
-    <img
-      src="/agrimanage-logo.png"
-      alt=""
-      width={160}
-      height={80}
-      style={{ objectFit: "contain", margin: "0 auto 10px auto" }}
-    />
-    <div style={{ ...styles.tagline, textAlign: "center" }}>
-      Flower Farm Manager
-    </div>
-  </div>
-</div>
 
-        {[
-          ["home", "Home"],
-          ["dashboard", "Dashboard"],
-          ["projects", "Projects"],
-          ["expenses", "Expenses"],
-          ["income", "Income"],
-          ["recurring", "Recurring Costs"],
-          ["notes", "Farm Notes"],
-          ["ai", "AI Assistant"],
-        ].map(([key, label]) => (
+        * {
+          box-sizing: border-box;
+        }
+      `}</style>
+
+      <aside style={styles.sidebar}>
+        <div style={styles.sidebarLogoBox}>
+          <img
+            src="/agrimanage-logo.png"
+            alt="AgriManage logo"
+            width={150}
+            height={80}
+            style={styles.sidebarLogoImage}
+          />
+          <div style={styles.sidebarTitle}>AgriManage™</div>
+          <div style={styles.tagline}>Flower Farm Manager</div>
+        </div>
+
+        {navItems.map(([key, label]) => (
           <button
             key={key}
-            onClick={() => setActiveTab(key as typeof activeTab)}
+            onClick={() => setActiveTab(key)}
             style={{
               ...styles.navButton,
               background: activeTab === key ? "#2f6f3e" : "#ffffff",
@@ -845,38 +827,22 @@ export default function Page() {
       </aside>
 
       <section style={styles.content}>
-        <h1 style={styles.heading}>AgriManage™</h1>
-        <p style={styles.subheading}>
-          Track flower farm expenses, sales, recurring costs, records, notes, projects, and Schedule F organizer categories.
-        </p>
-
-        {activeTab !== "home" && (
-          <div style={styles.exportBar}>
-            <button style={styles.secondaryButton} onClick={exportExpensesCsv}>
-              Export Expenses CSV
-            </button>
-            <button style={styles.secondaryButton} onClick={exportIncomeCsv}>
-              Export Income CSV
-            </button>
-            <button style={styles.actionButton} onClick={exportScheduleFCsv}>
-              Export Schedule F CSV
-            </button>
-          </div>
-        )}
-
-        {activeTab === "home" && (
-          <section style={styles.landingPanel}>
+        {activeTab === "home" ? (
+          <section style={styles.landingCard}>
             <img
               src="/agrimanage-logo.png"
               alt="AgriManage logo"
+              width={230}
+              height={130}
               style={styles.landingLogo}
             />
-            <h2 style={styles.landingTitle}>AgriManage™</h2>
+            <h1 style={styles.landingTitle}>AgriManage™</h1>
             <p style={styles.landingStatement}>
               Built by a Veteran Farmer for other Farmers
             </p>
-            <p style={styles.landingText}>
-              Track expenses, income, recurring costs, farm notes, projects, and Schedule F organizer categories in one clean farm management dashboard.
+            <p style={styles.landingSubtext}>
+              Track farm projects, expenses, income, recurring costs, notes, and
+              Schedule F organizer categories in one simple place.
             </p>
             <div style={styles.landingActions}>
               <button
@@ -887,738 +853,714 @@ export default function Page() {
               </button>
             </div>
           </section>
-        )}
-
-        {activeTab === "dashboard" && (
+        ) : (
           <>
-            <div style={styles.panel}>
-              <h3 style={{ marginTop: 0 }}>
-                Viewing:{" "}
-                {selectedProjectId === "all"
-                  ? "All Projects"
-                  : projectName(selectedProjectId)}
-              </h3>
-              <p style={styles.smallNote}>
-                Schedule F categories are for organizing records only. Confirm final tax treatment with a qualified tax professional.
-              </p>
-            </div>
+            <header style={styles.topHeader}>
+              <div>
+                <h1 style={styles.heading}>AgriManage™</h1>
+                <p style={styles.subheading}>
+                  Track flower farm expenses, sales, recurring costs, records,
+                  notes, projects, and Schedule F organizer categories.
+                </p>
+              </div>
 
-            <div style={styles.grid3}>
-              <StatCard title="Total Income" value={money(totalIncome)} />
-              <StatCard title="Total Expenses" value={money(totalExpenses)} />
-              <StatCard title="Net" value={money(net)} />
-            </div>
-
-            <div style={styles.grid3}>
-              <StatCard
-                title="Monthly Recurring Estimate"
-                value={money(estimatedMonthlyRecurring)}
-              />
-              <StatCard title="Projects" value={String(projects.length)} />
-              <StatCard title="Farm Notes" value={String(filteredNotes.length)} />
-            </div>
-
-            <div style={styles.panel}>
-              <h3>General Tax Summary</h3>
-              {Object.keys(taxSummary).length === 0 ? (
-                <p>No expense records yet.</p>
-              ) : (
-                Object.entries(taxSummary).map(([key, value]) => (
-                  <div key={key} style={styles.rowBetween}>
-                    <span>{key}</span>
-                    <strong>{money(value)}</strong>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div style={styles.panel}>
-              <div style={styles.sectionHeader}>
-                <h3 style={styles.sectionTitle}>Schedule F Organizer Summary</h3>
-                <button style={styles.secondaryButton} onClick={exportScheduleFCsv}>
-                  Export CSV
+              <div style={styles.exportActions}>
+                <button style={styles.secondaryButton} onClick={exportExpensesCSV}>
+                  Export Expenses CSV
+                </button>
+                <button style={styles.secondaryButton} onClick={exportIncomeCSV}>
+                  Export Income CSV
+                </button>
+                <button style={styles.secondaryButton} onClick={exportScheduleFCSV}>
+                  Export Schedule F CSV
                 </button>
               </div>
-              {Object.keys(scheduleFSummary).length === 0 ? (
-                <p>No Schedule F organizer data yet.</p>
-              ) : (
-                Object.entries(scheduleFSummary).map(([key, value]) => (
-                  <div key={key} style={styles.rowBetween}>
-                    <span>{key}</span>
-                    <strong>{money(value)}</strong>
+            </header>
+
+            {activeTab === "dashboard" && (
+              <>
+                <div style={styles.panel}>
+                  <h3 style={{ marginTop: 0 }}>
+                    Viewing:{" "}
+                    {selectedProjectId === "all"
+                      ? "All Projects"
+                      : projectName(selectedProjectId)}
+                  </h3>
+                  <p style={styles.smallNote}>
+                    Schedule F categories are for organizing records only. Confirm
+                    final tax treatment with a qualified tax professional.
+                  </p>
+                </div>
+
+                <div style={styles.grid3}>
+                  <StatCard title="Total Income" value={money(totalIncome)} />
+                  <StatCard title="Total Expenses" value={money(totalExpenses)} />
+                  <StatCard title="Net" value={money(net)} />
+                </div>
+
+                <div style={styles.grid3}>
+                  <StatCard
+                    title="Monthly Recurring Estimate"
+                    value={money(estimatedMonthlyRecurring)}
+                  />
+                  <StatCard title="Projects" value={String(projects.length)} />
+                  <StatCard title="Farm Notes" value={String(filteredNotes.length)} />
+                </div>
+
+                <div style={styles.panel}>
+                  <h3>General Tax Summary</h3>
+                  {Object.keys(taxSummary).length === 0 ? (
+                    <p>No expense records yet.</p>
+                  ) : (
+                    Object.entries(taxSummary).map(([key, value]) => (
+                      <div key={key} style={styles.rowBetween}>
+                        <span>{key}</span>
+                        <strong>{money(value)}</strong>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div style={styles.panel}>
+                  <h3>Schedule F Organizer Summary</h3>
+                  {Object.keys(scheduleFSummary).length === 0 ? (
+                    <p>No Schedule F organizer data yet.</p>
+                  ) : (
+                    Object.entries(scheduleFSummary).map(([key, value]) => (
+                      <div key={key} style={styles.rowBetween}>
+                        <span>{key}</span>
+                        <strong>{money(value)}</strong>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
+
+            {activeTab === "projects" && (
+              <>
+                <div style={styles.panel}>
+                  <h3>Add Project</h3>
+                  <div style={styles.formGrid}>
+                    <input
+                      style={styles.input}
+                      placeholder="Project name"
+                      value={projectForm.name}
+                      onChange={(e) =>
+                        setProjectForm({ ...projectForm, name: e.target.value })
+                      }
+                    />
                   </div>
-                ))
-              )}
-            </div>
-          </>
-        )}
+                  <textarea
+                    style={styles.textarea}
+                    placeholder="Description"
+                    value={projectForm.description}
+                    onChange={(e) =>
+                      setProjectForm({
+                        ...projectForm,
+                        description: e.target.value,
+                      })
+                    }
+                  />
+                  <button style={styles.actionButton} onClick={addProject}>
+                    Save Project
+                  </button>
+                </div>
 
-        {activeTab === "projects" && (
-          <>
-            <div style={styles.panel}>
-              <h3>Add Project</h3>
-              <div style={styles.formGrid}>
-                <input
-                  style={styles.input}
-                  placeholder="Project name"
-                  value={projectForm.name}
-                  onChange={(e) =>
-                    setProjectForm({ ...projectForm, name: e.target.value })
-                  }
-                />
-              </div>
-              <textarea
-                style={styles.textarea}
-                placeholder="Description"
-                value={projectForm.description}
-                onChange={(e) =>
-                  setProjectForm({
-                    ...projectForm,
-                    description: e.target.value,
-                  })
-                }
-              />
-              <button style={styles.actionButton} onClick={addProject}>
-                Save Project
-              </button>
-            </div>
+                <div style={styles.panel}>
+                  <h3>Project List</h3>
+                  {projects.length === 0 ? (
+                    <p>No projects yet.</p>
+                  ) : (
+                    projects.map((project) => {
+                      const projectExpenses = expenses.filter(
+                        (item) => item.projectId === project.id
+                      );
+                      const projectIncome = income.filter(
+                        (item) => item.projectId === project.id
+                      );
+                      const projectNotes = farmNotes.filter(
+                        (item) => item.projectId === project.id
+                      );
+                      const expenseTotal = projectExpenses.reduce(
+                        (sum, item) => sum + Number(item.amount || 0),
+                        0
+                      );
+                      const incomeTotal = projectIncome.reduce(
+                        (sum, item) => sum + Number(item.amount || 0),
+                        0
+                      );
 
-            <div style={styles.panel}>
-              <h3>Project List</h3>
-              {projects.length === 0 ? (
-                <p>No projects yet.</p>
-              ) : (
-                projects.map((project) => {
-                  const projectExpenses = expenses.filter(
-                    (item) => item.projectId === project.id
-                  );
-                  const projectIncome = income.filter(
-                    (item) => item.projectId === project.id
-                  );
-                  const projectNotes = farmNotes.filter(
-                    (item) => item.projectId === project.id
-                  );
-                  const expenseTotal = projectExpenses.reduce(
-                    (sum, item) => sum + Number(item.amount || 0),
-                    0
-                  );
-                  const incomeTotal = projectIncome.reduce(
-                    (sum, item) => sum + Number(item.amount || 0),
-                    0
-                  );
+                      return (
+                        <div key={project.id} style={styles.recordCard}>
+                          <div style={styles.rowBetween}>
+                            <strong>{project.name}</strong>
+                            <strong>{money(incomeTotal - expenseTotal)}</strong>
+                          </div>
+                          {project.description && <div>{project.description}</div>}
+                          <div style={styles.projectMeta}>
+                            <span>Income: {money(incomeTotal)}</span>
+                            <span>Expenses: {money(expenseTotal)}</span>
+                            <span>Notes: {projectNotes.length}</span>
+                          </div>
+                          <div style={styles.projectActions}>
+                            <button
+                              style={styles.secondaryButton}
+                              onClick={() => setSelectedProjectId(project.id)}
+                            >
+                              View Project
+                            </button>
+                            <button
+                              style={styles.deleteButton}
+                              onClick={() => deleteProject(project.id)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </>
+            )}
 
-                  return (
-                    <div key={project.id} style={styles.recordCard}>
-                      <div style={styles.rowBetween}>
-                        <strong>{project.name}</strong>
-                        <strong>{money(incomeTotal - expenseTotal)}</strong>
-                      </div>
-                      {project.description && <div>{project.description}</div>}
-                      <div style={styles.projectMeta}>
-                        <span>Income: {money(incomeTotal)}</span>
-                        <span>Expenses: {money(expenseTotal)}</span>
-                        <span>Notes: {projectNotes.length}</span>
-                      </div>
-                      <div style={styles.projectActions}>
-                        <button
-                          style={styles.secondaryButton}
-                          onClick={() => setSelectedProjectId(project.id)}
-                        >
-                          View Project
-                        </button>
+            {activeTab === "expenses" && (
+              <>
+                <div style={styles.panel}>
+                  <h3>Add Expense</h3>
+                  <div style={styles.formGrid}>
+                    <select
+                      style={styles.input}
+                      value={expenseForm.projectId}
+                      onChange={(e) =>
+                        setExpenseForm({ ...expenseForm, projectId: e.target.value })
+                      }
+                    >
+                      <option value="">Unassigned</option>
+                      {projects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    <input
+                      style={styles.input}
+                      type="date"
+                      value={expenseForm.date}
+                      onChange={(e) =>
+                        setExpenseForm({ ...expenseForm, date: e.target.value })
+                      }
+                    />
+
+                    <input
+                      style={styles.input}
+                      placeholder="Vendor"
+                      value={expenseForm.vendor}
+                      onChange={(e) =>
+                        setExpenseForm({ ...expenseForm, vendor: e.target.value })
+                      }
+                    />
+
+                    <input
+                      style={styles.input}
+                      placeholder="Item or expense description"
+                      value={expenseForm.item}
+                      onChange={(e) =>
+                        setExpenseForm({ ...expenseForm, item: e.target.value })
+                      }
+                    />
+
+                    <select
+                      style={styles.input}
+                      value={expenseForm.scheduleFCategory}
+                      onChange={(e) =>
+                        setExpenseForm({
+                          ...expenseForm,
+                          scheduleFCategory: e.target.value as ScheduleFCategory,
+                        })
+                      }
+                    >
+                      {scheduleFCategories.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+
+                    <input
+                      style={styles.input}
+                      type="number"
+                      placeholder="Amount"
+                      value={expenseForm.amount || ""}
+                      onChange={(e) =>
+                        setExpenseForm({
+                          ...expenseForm,
+                          amount: Number(e.target.value),
+                        })
+                      }
+                    />
+                  </div>
+
+                  <textarea
+                    style={styles.textarea}
+                    placeholder="Notes"
+                    value={expenseForm.notes}
+                    onChange={(e) =>
+                      setExpenseForm({ ...expenseForm, notes: e.target.value })
+                    }
+                  />
+
+                  <button style={styles.actionButton} onClick={addExpense}>
+                    Save Expense
+                  </button>
+                </div>
+
+                <div style={styles.panel}>
+                  <h3>Expense Records</h3>
+                  {filteredExpenses.length === 0 ? (
+                    <p>No expenses yet.</p>
+                  ) : (
+                    filteredExpenses.map((item) => (
+                      <div key={item.id} style={styles.recordCard}>
+                        <div style={styles.rowBetween}>
+                          <strong>{item.item}</strong>
+                          <strong>{money(item.amount)}</strong>
+                        </div>
+                        <div>{item.date}</div>
+                        <div>{item.vendor}</div>
+                        <div>Project: {projectName(item.projectId)}</div>
+                        <div>Schedule F: {item.scheduleFCategory}</div>
+                        {item.notes && <div>Notes: {item.notes}</div>}
                         <button
                           style={styles.deleteButton}
-                          onClick={() => deleteProject(project.id)}
+                          onClick={() =>
+                            setExpenses((prev) =>
+                              prev.filter((x) => x.id !== item.id)
+                            )
+                          }
                         >
                           Delete
                         </button>
                       </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </>
-        )}
-
-        {activeTab === "expenses" && (
-          <>
-            <div style={styles.panel}>
-              <div style={styles.sectionHeader}>
-                <div>
-                  <h3 style={styles.sectionTitle}></h3>
-                  <p style={styles.smallNote}>
-                    Choose the project and Schedule F category. AgriManage still automatically organizes the general expense and tax categories from the vendor, item, and notes.
-                  </p>
+                    ))
+                  )}
                 </div>
-                <button style={styles.secondaryButton} onClick={exportExpensesCsv}>
-                  Export Expenses CSV
-                </button>
-              </div>
+              </>
+            )}
 
-              <div style={styles.formGrid}>
-                <select
-                  style={styles.input}
-                  value={expenseForm.projectId}
-                  onChange={(e) =>
-                    setExpenseForm({ ...expenseForm, projectId: e.target.value })
-                  }
-                >
-                  <option value="">Unassigned</option>
-                  {projects.map((project) => (
-                    <option key={project.id} value={project.id}>
-                      {project.name}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  style={styles.input}
-                  type="date"
-                  value={expenseForm.date}
-                  onChange={(e) =>
-                    setExpenseForm({ ...expenseForm, date: e.target.value })
-                  }
-                />
-                <input
-                  style={styles.input}
-                  placeholder="Vendor"
-                  value={expenseForm.vendor}
-                  onChange={(e) =>
-                    setExpenseForm({ ...expenseForm, vendor: e.target.value })
-                  }
-                />
-                <input
-                  style={styles.input}
-                  placeholder="Item or expense description"
-                  value={expenseForm.item}
-                  onChange={(e) =>
-                    setExpenseForm({ ...expenseForm, item: e.target.value })
-                  }
-                />
-                <select
-                  style={styles.input}
-                  aria-label="Schedule F category"
-                  title="Schedule F category"
-                  value={expenseForm.scheduleFCategory}
-                  onChange={(e) =>
-                    setExpenseForm({
-                      ...expenseForm,
-                      scheduleFCategory: e.target.value as ScheduleFCategory,
-                    })
-                  }
-                >
-                  {scheduleFCategories.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  style={styles.input}
-                  type="number"
-                  placeholder="Amount"
-                  value={expenseForm.amount || ""}
-                  onChange={(e) =>
-                    setExpenseForm({
-                      ...expenseForm,
-                      amount: Number(e.target.value),
-                    })
-                  }
-                />
-              </div>
-
-              <textarea
-                style={styles.textarea}
-                placeholder="Notes"
-                value={expenseForm.notes}
-                onChange={(e) =>
-                  setExpenseForm({ ...expenseForm, notes: e.target.value })
-                }
-              />
-
-              <button style={styles.actionButton} onClick={addExpense}>
-                Save Expense
-              </button>
-            </div>
-
-            <div style={styles.panel}>
-              <div style={styles.sectionHeader}>
-                <h3 style={styles.sectionTitle}>Expense Records</h3>
-                <button style={styles.secondaryButton} onClick={exportExpensesCsv}>
-                  Export CSV
-                </button>
-              </div>
-              {filteredExpenses.length === 0 ? (
-                <p>No expenses yet.</p>
-              ) : (
-                filteredExpenses.map((item) => (
-                  <div key={item.id} style={styles.recordCard}>
-                    <div style={styles.rowBetween}>
-                      <strong>{item.item}</strong>
-                      <strong>{money(item.amount)}</strong>
-                    </div>
-                    <div>{item.date}</div>
-                    <div>{item.vendor}</div>
-                    <div>Project: {projectName(item.projectId)}</div>
-                    <div>Category: {item.category}</div>
-                    <div>General Tax: {item.taxCategory}</div>
-                    <div>Schedule F: {item.scheduleFCategory}</div>
-                    {item.notes && <div>Notes: {item.notes}</div>}
-                    <button
-                      style={styles.deleteButton}
-                      onClick={() =>
-                        setExpenses((prev) => prev.filter((x) => x.id !== item.id))
+            {activeTab === "income" && (
+              <>
+                <div style={styles.panel}>
+                  <h3>Add Income</h3>
+                  <div style={styles.formGrid}>
+                    <select
+                      style={styles.input}
+                      value={incomeForm.projectId}
+                      onChange={(e) =>
+                        setIncomeForm({ ...incomeForm, projectId: e.target.value })
                       }
                     >
-                      Delete
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </>
-        )}
+                      <option value="">Unassigned</option>
+                      {projects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </select>
 
-        {activeTab === "income" && (
-          <>
-            <div style={styles.panel}>
-              <div style={styles.sectionHeader}>
-                <div>
-                  <h3 style={styles.sectionTitle}></h3>
-                  <p style={styles.smallNote}>
-                    Choose the project and Schedule F category. AgriManage still automatically assigns the income category from the source, description, and notes.
-                  </p>
+                    <input
+                      style={styles.input}
+                      type="date"
+                      value={incomeForm.date}
+                      onChange={(e) =>
+                        setIncomeForm({ ...incomeForm, date: e.target.value })
+                      }
+                    />
+
+                    <input
+                      style={styles.input}
+                      placeholder="Source"
+                      value={incomeForm.source}
+                      onChange={(e) =>
+                        setIncomeForm({ ...incomeForm, source: e.target.value })
+                      }
+                    />
+
+                    <input
+                      style={styles.input}
+                      placeholder="Income description"
+                      value={incomeForm.description}
+                      onChange={(e) =>
+                        setIncomeForm({
+                          ...incomeForm,
+                          description: e.target.value,
+                        })
+                      }
+                    />
+
+                    <select
+                      style={styles.input}
+                      value={incomeForm.scheduleFCategory}
+                      onChange={(e) =>
+                        setIncomeForm({
+                          ...incomeForm,
+                          scheduleFCategory: e.target.value as ScheduleFCategory,
+                        })
+                      }
+                    >
+                      {scheduleFCategories.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+
+                    <input
+                      style={styles.input}
+                      type="number"
+                      placeholder="Amount"
+                      value={incomeForm.amount || ""}
+                      onChange={(e) =>
+                        setIncomeForm({
+                          ...incomeForm,
+                          amount: Number(e.target.value),
+                        })
+                      }
+                    />
+                  </div>
+
+                  <textarea
+                    style={styles.textarea}
+                    placeholder="Notes"
+                    value={incomeForm.notes}
+                    onChange={(e) =>
+                      setIncomeForm({ ...incomeForm, notes: e.target.value })
+                    }
+                  />
+
+                  <button style={styles.actionButton} onClick={addIncome}>
+                    Save Income
+                  </button>
                 </div>
-                <button style={styles.secondaryButton} onClick={exportIncomeCsv}>
-                  Export Income CSV
-                </button>
-              </div>
 
-              <div style={styles.formGrid}>
-                <select
-                  style={styles.input}
-                  value={incomeForm.projectId}
-                  onChange={(e) =>
-                    setIncomeForm({ ...incomeForm, projectId: e.target.value })
-                  }
-                >
-                  <option value="">Unassigned</option>
-                  {projects.map((project) => (
-                    <option key={project.id} value={project.id}>
-                      {project.name}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  style={styles.input}
-                  type="date"
-                  value={incomeForm.date}
-                  onChange={(e) =>
-                    setIncomeForm({ ...incomeForm, date: e.target.value })
-                  }
-                />
-                <input
-                  style={styles.input}
-                  placeholder="Source"
-                  value={incomeForm.source}
-                  onChange={(e) =>
-                    setIncomeForm({ ...incomeForm, source: e.target.value })
-                  }
-                />
-                <input
-                  style={styles.input}
-                  placeholder="Description"
-                  value={incomeForm.description}
-                  onChange={(e) =>
-                    setIncomeForm({
-                      ...incomeForm,
-                      description: e.target.value,
-                    })
-                  }
-                />
-                <input
-                  style={styles.input}
-                  type="number"
-                  placeholder="Amount"
-                  value={incomeForm.amount || ""}
-                  onChange={(e) =>
-                    setIncomeForm({
-                      ...incomeForm,
-                      amount: Number(e.target.value),
-                    })
-                  }
-                />
-                <select
-                  style={styles.input}
-                  value={incomeForm.scheduleFCategory}
-                  onChange={(e) =>
-                    setIncomeForm({
-                      ...incomeForm,
-                      scheduleFCategory: e.target.value as ScheduleFCategory,
-                    })
-                  }
-                >
-                  {scheduleFCategories.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <textarea
-                style={styles.textarea}
-                placeholder="Notes"
-                value={incomeForm.notes}
-                onChange={(e) =>
-                  setIncomeForm({ ...incomeForm, notes: e.target.value })
-                }
-              />
-
-              <button style={styles.actionButton} onClick={addIncome}>
-                Save Income
-              </button>
-            </div>
-
-            <div style={styles.panel}>
-              <div style={styles.sectionHeader}>
-                <h3 style={styles.sectionTitle}>Income Records</h3>
-                <button style={styles.secondaryButton} onClick={exportIncomeCsv}>
-                  Export CSV
-                </button>
-              </div>
-              {filteredIncome.length === 0 ? (
-                <p>No income yet.</p>
-              ) : (
-                filteredIncome.map((item) => (
-                  <div key={item.id} style={styles.recordCard}>
-                    <div style={styles.rowBetween}>
-                      <strong>{item.description}</strong>
-                      <strong>{money(item.amount)}</strong>
-                    </div>
-                    <div>{item.date}</div>
-                    <div>{item.source}</div>
-                    <div>Project: {projectName(item.projectId)}</div>
-                    <div>Income Category: {item.category}</div>
-                    <div>Schedule F: {item.scheduleFCategory}</div>
-                    {item.notes && <div>Notes: {item.notes}</div>}
-                    <button
-                      style={styles.deleteButton}
-                      onClick={() =>
-                        setIncome((prev) => prev.filter((x) => x.id !== item.id))
-                      }
-                    >
-                      Delete
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </>
-        )}
-
-        {activeTab === "recurring" && (
-          <>
-            <div style={styles.panel}>
-              <h3>Add Recurring Cost</h3>
-              <div style={styles.formGrid}>
-                <select
-                  style={styles.input}
-                  value={recurringForm.projectId}
-                  onChange={(e) =>
-                    setRecurringForm({
-                      ...recurringForm,
-                      projectId: e.target.value,
-                    })
-                  }
-                >
-                  <option value="">Unassigned</option>
-                  {projects.map((project) => (
-                    <option key={project.id} value={project.id}>
-                      {project.name}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  style={styles.input}
-                  placeholder="Name"
-                  value={recurringForm.name}
-                  onChange={(e) =>
-                    setRecurringForm({ ...recurringForm, name: e.target.value })
-                  }
-                />
-                <input
-                  style={styles.input}
-                  type="number"
-                  placeholder="Amount"
-                  value={recurringForm.amount || ""}
-                  onChange={(e) =>
-                    setRecurringForm({
-                      ...recurringForm,
-                      amount: Number(e.target.value),
-                    })
-                  }
-                />
-                <select
-                  style={styles.input}
-                  value={recurringForm.frequency}
-                  onChange={(e) =>
-                    setRecurringForm({
-                      ...recurringForm,
-                      frequency: e.target.value as RecurringCost["frequency"],
-                    })
-                  }
-                >
-                  <option>Weekly</option>
-                  <option>Monthly</option>
-                  <option>Quarterly</option>
-                  <option>Yearly</option>
-                </select>
-                <input
-                  style={styles.input}
-                  type="date"
-                  value={recurringForm.nextDue}
-                  onChange={(e) =>
-                    setRecurringForm({
-                      ...recurringForm,
-                      nextDue: e.target.value,
-                    })
-                  }
-                />
-                <select
-                  style={styles.input}
-                  value={recurringForm.category}
-                  onChange={(e) => {
-                    const category = e.target.value as ExpenseCategory;
-                    setRecurringForm({
-                      ...recurringForm,
-                      category,
-                      scheduleFCategory: guessScheduleFCategory(category),
-                    });
-                  }}
-                >
-                  {expenseCategories.map((cat) => (
-                    <option key={cat}>{cat}</option>
-                  ))}
-                </select>
-                <select
-                  style={styles.input}
-                  value={recurringForm.taxCategory}
-                  onChange={(e) =>
-                    setRecurringForm({
-                      ...recurringForm,
-                      taxCategory: e.target.value as TaxCategory,
-                    })
-                  }
-                >
-                  {taxCategories.map((cat) => (
-                    <option key={cat}>{cat}</option>
-                  ))}
-                </select>
-                <select
-                  style={styles.input}
-                  value={recurringForm.scheduleFCategory}
-                  onChange={(e) =>
-                    setRecurringForm({
-                      ...recurringForm,
-                      scheduleFCategory: e.target.value as ScheduleFCategory,
-                    })
-                  }
-                >
-                  {scheduleFCategories.map((cat) => (
-                    <option key={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-
-              <textarea
-                style={styles.textarea}
-                placeholder="Notes"
-                value={recurringForm.notes}
-                onChange={(e) =>
-                  setRecurringForm({ ...recurringForm, notes: e.target.value })
-                }
-              />
-
-              <button style={styles.actionButton} onClick={addRecurring}>
-                Save Recurring Cost
-              </button>
-            </div>
-
-            <div style={styles.panel}>
-              <h3>Recurring Costs</h3>
-              {filteredRecurring.length === 0 ? (
-                <p>No recurring costs yet.</p>
-              ) : (
-                filteredRecurring.map((item) => (
-                  <div key={item.id} style={styles.recordCard}>
-                    <div style={styles.rowBetween}>
-                      <strong>{item.name}</strong>
-                      <strong>{money(item.amount)}</strong>
-                    </div>
-                    <div>Project: {projectName(item.projectId)}</div>
-                    <div>{item.frequency}</div>
-                    <div>Next Due: {item.nextDue}</div>
-                    <div>Category: {item.category}</div>
-                    <div>General Tax: {item.taxCategory}</div>
-                    <div>Schedule F: {item.scheduleFCategory}</div>
-                    {item.notes && <div>Notes: {item.notes}</div>}
-                    <button
-                      style={styles.deleteButton}
-                      onClick={() =>
-                        setRecurringCosts((prev) =>
-                          prev.filter((x) => x.id !== item.id)
-                        )
-                      }
-                    >
-                      Delete
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </>
-        )}
-
-        {activeTab === "notes" && (
-          <>
-            <div style={styles.panel}>
-              <h3>Add Farm Note</h3>
-              <div style={styles.formGrid}>
-                <select
-                  style={styles.input}
-                  value={noteForm.projectId}
-                  onChange={(e) =>
-                    setNoteForm({ ...noteForm, projectId: e.target.value })
-                  }
-                >
-                  <option value="">Unassigned</option>
-                  {projects.map((project) => (
-                    <option key={project.id} value={project.id}>
-                      {project.name}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  style={styles.input}
-                  type="date"
-                  value={noteForm.date}
-                  onChange={(e) =>
-                    setNoteForm({ ...noteForm, date: e.target.value })
-                  }
-                />
-                <input
-                  style={styles.input}
-                  placeholder="Title"
-                  value={noteForm.title}
-                  onChange={(e) =>
-                    setNoteForm({ ...noteForm, title: e.target.value })
-                  }
-                />
-                <select
-                  style={styles.input}
-                  value={noteForm.type}
-                  onChange={(e) =>
-                    setNoteForm({
-                      ...noteForm,
-                      type: e.target.value as FarmNote["type"],
-                    })
-                  }
-                >
-                  <option>Planting</option>
-                  <option>Harvest</option>
-                  <option>Pest/Disease</option>
-                  <option>Weather</option>
-                  <option>General</option>
-                </select>
-              </div>
-
-              <textarea
-                style={styles.textarea}
-                placeholder="Farm note"
-                value={noteForm.note}
-                onChange={(e) =>
-                  setNoteForm({ ...noteForm, note: e.target.value })
-                }
-              />
-
-              <button style={styles.actionButton} onClick={addNote}>
-                Save Note
-              </button>
-            </div>
-
-            <div style={styles.panel}>
-              <h3>Farm Notes</h3>
-              {filteredNotes.length === 0 ? (
-                <p>No notes yet.</p>
-              ) : (
-                filteredNotes.map((item) => (
-                  <div key={item.id} style={styles.recordCard}>
-                    <div style={styles.rowBetween}>
-                      <strong>{item.title}</strong>
-                      <strong>{item.type}</strong>
-                    </div>
-                    <div>{item.date}</div>
-                    <div>Project: {projectName(item.projectId)}</div>
-                    <div>{item.note}</div>
-                    <button
-                      style={styles.deleteButton}
-                      onClick={() =>
-                        setFarmNotes((prev) => prev.filter((x) => x.id !== item.id))
-                      }
-                    >
-                      Delete
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </>
-        )}
-
-        {activeTab === "ai" && (
-          <div style={styles.panel}>
-            <h3>AI Assistant</h3>
-            <p style={{ marginTop: 0, color: "#48624e" }}>
-              Current AI scope:{" "}
-              {selectedProjectId === "all"
-                ? "All Projects"
-                : projectName(selectedProjectId)}
-            </p>
-
-            <div style={styles.chatBox}>
-              {chat.map((msg, i) => (
-                <div
-                  key={i}
-                  style={{
-                    ...styles.chatBubble,
-                    alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
-                    background: msg.role === "user" ? "#dff1e3" : "#ffffff",
-                  }}
-                >
-                  <strong>{msg.role === "user" ? "You" : "AI"}:</strong>
-                  <div style={{ marginTop: 6, whiteSpace: "pre-wrap" }}>
-                    {msg.content}
-                  </div>
+                <div style={styles.panel}>
+                  <h3>Income Records</h3>
+                  {filteredIncome.length === 0 ? (
+                    <p>No income yet.</p>
+                  ) : (
+                    filteredIncome.map((item) => (
+                      <div key={item.id} style={styles.recordCard}>
+                        <div style={styles.rowBetween}>
+                          <strong>{item.description}</strong>
+                          <strong>{money(item.amount)}</strong>
+                        </div>
+                        <div>{item.date}</div>
+                        <div>{item.source}</div>
+                        <div>Project: {projectName(item.projectId)}</div>
+                        <div>Schedule F: {item.scheduleFCategory}</div>
+                        {item.notes && <div>Notes: {item.notes}</div>}
+                        <button
+                          style={styles.deleteButton}
+                          onClick={() =>
+                            setIncome((prev) => prev.filter((x) => x.id !== item.id))
+                          }
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    ))
+                  )}
                 </div>
-              ))}
-            </div>
+              </>
+            )}
 
-            <textarea
-              style={styles.textarea}
-              placeholder="Ask about costs, project trends, Schedule F organizer categories, tax organization, or records..."
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-            />
+            {activeTab === "recurring" && (
+              <>
+                <div style={styles.panel}>
+                  <h3>Add Recurring Cost</h3>
+                  <div style={styles.formGrid}>
+                    <select
+                      style={styles.input}
+                      value={recurringForm.projectId}
+                      onChange={(e) =>
+                        setRecurringForm({
+                          ...recurringForm,
+                          projectId: e.target.value,
+                        })
+                      }
+                    >
+                      <option value="">Unassigned</option>
+                      {projects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </select>
 
-            <button
-              style={styles.actionButton}
-              onClick={askAI}
-              disabled={loadingAI}
-            >
-              {loadingAI ? "Thinking..." : "Ask AI"}
-            </button>
-          </div>
+                    <input
+                      style={styles.input}
+                      placeholder="Name"
+                      value={recurringForm.name}
+                      onChange={(e) =>
+                        setRecurringForm({ ...recurringForm, name: e.target.value })
+                      }
+                    />
+
+                    <input
+                      style={styles.input}
+                      type="number"
+                      placeholder="Amount"
+                      value={recurringForm.amount || ""}
+                      onChange={(e) =>
+                        setRecurringForm({
+                          ...recurringForm,
+                          amount: Number(e.target.value),
+                        })
+                      }
+                    />
+
+                    <select
+                      style={styles.input}
+                      value={recurringForm.frequency}
+                      onChange={(e) =>
+                        setRecurringForm({
+                          ...recurringForm,
+                          frequency: e.target.value as RecurringCost["frequency"],
+                        })
+                      }
+                    >
+                      <option>Weekly</option>
+                      <option>Monthly</option>
+                      <option>Quarterly</option>
+                      <option>Yearly</option>
+                    </select>
+
+                    <input
+                      style={styles.input}
+                      type="date"
+                      value={recurringForm.nextDue}
+                      onChange={(e) =>
+                        setRecurringForm({
+                          ...recurringForm,
+                          nextDue: e.target.value,
+                        })
+                      }
+                    />
+
+                    <select
+                      style={styles.input}
+                      value={recurringForm.scheduleFCategory}
+                      onChange={(e) =>
+                        setRecurringForm({
+                          ...recurringForm,
+                          scheduleFCategory: e.target.value as ScheduleFCategory,
+                        })
+                      }
+                    >
+                      {scheduleFCategories.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <textarea
+                    style={styles.textarea}
+                    placeholder="Notes"
+                    value={recurringForm.notes}
+                    onChange={(e) =>
+                      setRecurringForm({ ...recurringForm, notes: e.target.value })
+                    }
+                  />
+
+                  <button style={styles.actionButton} onClick={addRecurring}>
+                    Save Recurring Cost
+                  </button>
+                </div>
+
+                <div style={styles.panel}>
+                  <h3>Recurring Costs</h3>
+                  {filteredRecurring.length === 0 ? (
+                    <p>No recurring costs yet.</p>
+                  ) : (
+                    filteredRecurring.map((item) => (
+                      <div key={item.id} style={styles.recordCard}>
+                        <div style={styles.rowBetween}>
+                          <strong>{item.name}</strong>
+                          <strong>{money(item.amount)}</strong>
+                        </div>
+                        <div>Project: {projectName(item.projectId)}</div>
+                        <div>{item.frequency}</div>
+                        <div>Next Due: {item.nextDue}</div>
+                        <div>Schedule F: {item.scheduleFCategory}</div>
+                        {item.notes && <div>Notes: {item.notes}</div>}
+                        <button
+                          style={styles.deleteButton}
+                          onClick={() =>
+                            setRecurringCosts((prev) =>
+                              prev.filter((x) => x.id !== item.id)
+                            )
+                          }
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
+
+            {activeTab === "notes" && (
+              <>
+                <div style={styles.panel}>
+                  <h3>Add Farm Note</h3>
+                  <div style={styles.formGrid}>
+                    <select
+                      style={styles.input}
+                      value={noteForm.projectId}
+                      onChange={(e) =>
+                        setNoteForm({ ...noteForm, projectId: e.target.value })
+                      }
+                    >
+                      <option value="">Unassigned</option>
+                      {projects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    <input
+                      style={styles.input}
+                      type="date"
+                      value={noteForm.date}
+                      onChange={(e) =>
+                        setNoteForm({ ...noteForm, date: e.target.value })
+                      }
+                    />
+
+                    <input
+                      style={styles.input}
+                      placeholder="Title"
+                      value={noteForm.title}
+                      onChange={(e) =>
+                        setNoteForm({ ...noteForm, title: e.target.value })
+                      }
+                    />
+
+                    <select
+                      style={styles.input}
+                      value={noteForm.type}
+                      onChange={(e) =>
+                        setNoteForm({
+                          ...noteForm,
+                          type: e.target.value as FarmNote["type"],
+                        })
+                      }
+                    >
+                      <option>Planting</option>
+                      <option>Harvest</option>
+                      <option>Pest/Disease</option>
+                      <option>Weather</option>
+                      <option>General</option>
+                    </select>
+                  </div>
+
+                  <textarea
+                    style={styles.textarea}
+                    placeholder="Farm note"
+                    value={noteForm.note}
+                    onChange={(e) =>
+                      setNoteForm({ ...noteForm, note: e.target.value })
+                    }
+                  />
+
+                  <button style={styles.actionButton} onClick={addNote}>
+                    Save Note
+                  </button>
+                </div>
+
+                <div style={styles.panel}>
+                  <h3>Farm Notes</h3>
+                  {filteredNotes.length === 0 ? (
+                    <p>No notes yet.</p>
+                  ) : (
+                    filteredNotes.map((item) => (
+                      <div key={item.id} style={styles.recordCard}>
+                        <div style={styles.rowBetween}>
+                          <strong>{item.title}</strong>
+                          <strong>{item.type}</strong>
+                        </div>
+                        <div>{item.date}</div>
+                        <div>Project: {projectName(item.projectId)}</div>
+                        <div>{item.note}</div>
+                        <button
+                          style={styles.deleteButton}
+                          onClick={() =>
+                            setFarmNotes((prev) =>
+                              prev.filter((x) => x.id !== item.id)
+                            )
+                          }
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
+
+            {activeTab === "ai" && (
+              <div style={styles.panel}>
+                <h3>AI Assistant</h3>
+                <p style={{ marginTop: 0, color: "#48624e" }}>
+                  Current AI scope:{" "}
+                  {selectedProjectId === "all"
+                    ? "All Projects"
+                    : projectName(selectedProjectId)}
+                </p>
+
+                <div style={styles.chatBox}>
+                  {chat.map((msg, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        ...styles.chatBubble,
+                        alignSelf:
+                          msg.role === "user" ? "flex-end" : "flex-start",
+                        background: msg.role === "user" ? "#dff1e3" : "#ffffff",
+                      }}
+                    >
+                      <strong>{msg.role === "user" ? "You" : "AI"}:</strong>
+                      <div style={{ marginTop: 6, whiteSpace: "pre-wrap" }}>
+                        {msg.content}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <textarea
+                  style={styles.textarea}
+                  placeholder="Ask about costs, project trends, Schedule F organizer categories, tax organization, or records..."
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                />
+
+                <button
+                  style={styles.actionButton}
+                  onClick={askAI}
+                  disabled={loadingAI}
+                >
+                  {loadingAI ? "Thinking..." : "Ask AI"}
+                </button>
+              </div>
+            )}
+          </>
         )}
       </section>
     </main>
@@ -1629,7 +1571,7 @@ function StatCard({ title, value }: { title: string; value: string }) {
   return (
     <div style={styles.card}>
       <div style={{ fontSize: 14, opacity: 0.8 }}>{title}</div>
-      <div style={{ fontSize: 28, fontWeight: 700, marginTop: 8 }}>{value}</div>
+      <div style={{ fontSize: 28, fontWeight: 800, marginTop: 8 }}>{value}</div>
     </div>
   );
 }
@@ -1645,14 +1587,23 @@ const styles: Record<string, React.CSSProperties> = {
   },
   sidebar: {
     width: 280,
-    background: "linear-gradient(180deg, #e4f0e4 0%, #f7fbf7 100%)",
-    padding: 22,
+    background: "#e4f0e4",
+    padding: 20,
     borderRight: "1px solid #cfe0cf",
-    boxShadow: "8px 0 24px rgba(23, 53, 31, 0.06)",
+    flexShrink: 0,
   },
-  logo: {
-    fontSize: 28,
-    fontWeight: 800,
+  sidebarLogoBox: {
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  sidebarLogoImage: {
+    objectFit: "contain",
+    margin: "0 auto 8px auto",
+    display: "block",
+  },
+  sidebarTitle: {
+    fontSize: 26,
+    fontWeight: 900,
     color: "#1d5a2c",
   },
   tagline: {
@@ -1660,26 +1611,23 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 20,
     color: "#4d6a54",
     fontSize: 14,
-    fontWeight: 700,
   },
   navButton: {
     width: "100%",
     marginBottom: 10,
     padding: "12px 14px",
-    borderRadius: 14,
+    borderRadius: 12,
     border: "1px solid #b7cdb7",
     cursor: "pointer",
     textAlign: "left",
     fontWeight: 700,
-    boxShadow: "0 6px 14px rgba(23, 53, 31, 0.05)",
   },
   filterBox: {
     marginTop: 20,
-    padding: 14,
+    padding: 12,
     background: "#ffffff",
     border: "1px solid #d5e5d5",
-    borderRadius: 16,
-    boxShadow: "0 10px 24px rgba(23, 53, 31, 0.06)",
+    borderRadius: 14,
   },
   filterLabel: {
     fontSize: 13,
@@ -1689,88 +1637,54 @@ const styles: Record<string, React.CSSProperties> = {
   },
   content: {
     flex: 1,
-    padding: 30,
-    maxWidth: 1280,
-    margin: "0 auto",
+    padding: 28,
+    overflow: "auto",
   },
-  heading: {
-    margin: 0,
-    fontSize: 38,
-    color: "#18361f",
-    letterSpacing: "-0.03em",
-  },
-  subheading: {
-    marginTop: 8,
-    marginBottom: 18,
-    color: "#48624e",
-    fontSize: 16,
-    lineHeight: 1.5,
-  },
-  exportBar: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 10,
-    marginBottom: 22,
-    padding: 14,
-    background: "#ffffff",
+  landingCard: {
+    background: "linear-gradient(135deg, #ffffff 0%, #eef7ee 100%)",
+    borderRadius: 28,
+    padding: 56,
     border: "1px solid #d5e5d5",
-    borderRadius: 18,
-    boxShadow: "0 10px 26px rgba(23, 53, 31, 0.06)",
-  },
-  sectionHeader: {
-    display: "flex",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 16,
-    flexWrap: "wrap",
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    margin: 0,
-  },
-  landingPanel: {
-    minHeight: "calc(100vh - 180px)",
+    textAlign: "center",
+    minHeight: "calc(100vh - 56px)",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    textAlign: "center",
-    background: "linear-gradient(135deg, #ffffff 0%, #f0f8ef 100%)",
-    border: "1px solid #d5e5d5",
-    borderRadius: 26,
-    padding: "48px 28px",
-    boxShadow: "0 18px 42px rgba(23, 53, 31, 0.08)",
+    boxShadow: "0 20px 50px rgba(23, 53, 31, 0.10)",
+    animation: "fadeInLanding 700ms ease-out both",
   },
   landingLogo: {
-    width: 220,
-    maxWidth: "70%",
+    width: 230,
     height: "auto",
     objectFit: "contain",
     marginBottom: 20,
+    animation: "logoFloat 4.5s ease-in-out infinite",
+    filter: "drop-shadow(0 10px 20px rgba(23, 53, 31, 0.14))",
   },
   landingTitle: {
     margin: 0,
-    fontSize: 44,
-    color: "#18361f",
-    letterSpacing: "-0.04em",
+    fontSize: 48,
+    fontWeight: 950,
+    color: "#17351f",
   },
   landingStatement: {
-    margin: "14px 0 0",
+    marginTop: 14,
+    marginBottom: 0,
     fontSize: 24,
-    fontWeight: 800,
+    fontWeight: 850,
     color: "#2f6f3e",
   },
-  landingText: {
+  landingSubtext: {
     maxWidth: 720,
-    margin: "16px auto 26px",
+    marginTop: 16,
+    marginBottom: 28,
     color: "#48624e",
     fontSize: 17,
     lineHeight: 1.6,
   },
   landingActions: {
     display: "flex",
-    gap: 12,
-    flexWrap: "wrap",
     justifyContent: "center",
     alignItems: "center",
     width: "100%",
@@ -1780,13 +1694,89 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#fff",
     border: "none",
     borderRadius: 16,
-    padding: "16px 30px",
-    minWidth: 230,
+    padding: "16px 34px",
+    minWidth: 240,
     cursor: "pointer",
     fontWeight: 900,
     fontSize: 17,
     letterSpacing: "0.01em",
     boxShadow: "0 14px 28px rgba(47, 111, 62, 0.24)",
+  },
+  topHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 20,
+    marginBottom: 24,
+    flexWrap: "wrap",
+  },
+  exportActions: {
+    display: "flex",
+    gap: 10,
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+  },
+  heading: {
+    margin: 0,
+    fontSize: 34,
+    color: "#18361f",
+  },
+  subheading: {
+    marginTop: 8,
+    marginBottom: 0,
+    color: "#48624e",
+    maxWidth: 760,
+  },
+  smallNote: {
+    color: "#48624e",
+    fontSize: 14,
+    marginBottom: 0,
+  },
+  grid3: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: 16,
+    marginBottom: 16,
+  },
+  card: {
+    background: "#ffffff",
+    borderRadius: 16,
+    padding: 18,
+    border: "1px solid #d5e5d5",
+    boxShadow: "0 8px 24px rgba(23, 53, 31, 0.05)",
+  },
+  panel: {
+    background: "#ffffff",
+    borderRadius: 18,
+    padding: 20,
+    border: "1px solid #d5e5d5",
+    marginBottom: 18,
+    boxShadow: "0 8px 24px rgba(23, 53, 31, 0.05)",
+  },
+  formGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+    gap: 12,
+    marginBottom: 12,
+  },
+  input: {
+    width: "100%",
+    padding: 11,
+    borderRadius: 10,
+    border: "1px solid #bfd1bf",
+    background: "#fff",
+    color: "#17351f",
+    fontSize: 14,
+  },
+  textarea: {
+    width: "100%",
+    minHeight: 100,
+    padding: 11,
+    borderRadius: 10,
+    border: "1px solid #bfd1bf",
+    marginBottom: 12,
+    color: "#17351f",
+    fontSize: 14,
   },
   actionButton: {
     background: "#2f6f3e",
@@ -1796,7 +1786,6 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "12px 16px",
     cursor: "pointer",
     fontWeight: 800,
-    boxShadow: "0 8px 16px rgba(47, 111, 62, 0.18)",
   },
   secondaryButton: {
     background: "#ffffff",
@@ -1815,15 +1804,14 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 10,
     padding: "8px 12px",
     cursor: "pointer",
-    fontWeight: 700,
+    fontWeight: 800,
   },
   recordCard: {
     border: "1px solid #d5e5d5",
-    borderRadius: 16,
+    borderRadius: 14,
     padding: 14,
     marginBottom: 12,
     background: "#fbfdfb",
-    boxShadow: "0 6px 16px rgba(23, 53, 31, 0.04)",
   },
   rowBetween: {
     display: "flex",
@@ -1853,16 +1841,15 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 12,
     maxHeight: 420,
     overflowY: "auto",
-    padding: 12,
+    padding: 8,
     background: "#f7fbf7",
-    borderRadius: 16,
+    borderRadius: 12,
     border: "1px solid #d5e5d5",
   },
   chatBubble: {
     maxWidth: "80%",
     padding: 12,
-    borderRadius: 14,
+    borderRadius: 12,
     border: "1px solid #d5e5d5",
-    lineHeight: 1.45,
   },
 };
