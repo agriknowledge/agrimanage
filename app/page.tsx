@@ -860,13 +860,13 @@ export default function Page() {
                 style={styles.secondaryButton}
                 onClick={() => setActiveTab("expenses")}
               >
-                Add Expense
+                
               </button>
               <button
                 style={styles.secondaryButton}
                 onClick={() => setActiveTab("income")}
               >
-                Add Income
+                
               </button>
             </div>
           </section>
@@ -1029,7 +1029,7 @@ export default function Page() {
             <div style={styles.panel}>
               <div style={styles.sectionHeader}>
                 <div>
-                  <h3 style={styles.sectionTitle}>Add Expense</h3>
+                  <h3 style={styles.sectionTitle}></h3>
                   <p style={styles.smallNote}>
                     Choose the project and Schedule F category. AgriManage still automatically organizes the general expense and tax categories from the vendor, item, and notes.
                   </p>
@@ -1078,20 +1078,10 @@ export default function Page() {
                     setExpenseForm({ ...expenseForm, item: e.target.value })
                   }
                 />
-                <input
-                  style={styles.input}
-                  type="number"
-                  placeholder="Amount"
-                  value={expenseForm.amount || ""}
-                  onChange={(e) =>
-                    setExpenseForm({
-                      ...expenseForm,
-                      amount: Number(e.target.value),
-                    })
-                  }
-                />
                 <select
                   style={styles.input}
+                  aria-label="Schedule F category"
+                  title="Schedule F category"
                   value={expenseForm.scheduleFCategory}
                   onChange={(e) =>
                     setExpenseForm({
@@ -1106,6 +1096,18 @@ export default function Page() {
                     </option>
                   ))}
                 </select>
+                <input
+                  style={styles.input}
+                  type="number"
+                  placeholder="Amount"
+                  value={expenseForm.amount || ""}
+                  onChange={(e) =>
+                    setExpenseForm({
+                      ...expenseForm,
+                      amount: Number(e.target.value),
+                    })
+                  }
+                />
               </div>
 
               <textarea
@@ -1165,7 +1167,7 @@ export default function Page() {
             <div style={styles.panel}>
               <div style={styles.sectionHeader}>
                 <div>
-                  <h3 style={styles.sectionTitle}>Add Income</h3>
+                  <h3 style={styles.sectionTitle}></h3>
                   <p style={styles.smallNote}>
                     Choose the project and Schedule F category. AgriManage still automatically assigns the income category from the source, description, and notes.
                   </p>
@@ -1753,6 +1755,8 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 12,
     flexWrap: "wrap",
     justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
   },
   smallNote: {
     color: "#48624e",
@@ -1806,6 +1810,19 @@ const styles: Record<string, React.CSSProperties> = {
     boxSizing: "border-box",
     fontSize: 15,
     resize: "vertical",
+  },
+  landingPrimaryButton: {
+    background: "#2f6f3e",
+    color: "#fff",
+    border: "none",
+    borderRadius: 16,
+    padding: "16px 30px",
+    minWidth: 230,
+    cursor: "pointer",
+    fontWeight: 900,
+    fontSize: 17,
+    letterSpacing: "0.01em",
+    boxShadow: "0 14px 28px rgba(47, 111, 62, 0.24)",
   },
   actionButton: {
     background: "#2f6f3e",
