@@ -759,6 +759,35 @@ export default function Page() {
 
   return (
     <main style={styles.page}>
+      <style jsx global>{`
+        @keyframes fadeInLanding {
+          from {
+            opacity: 0;
+            transform: translateY(14px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes logoFloat {
+          0%, 100% {
+            transform: translateY(0) scale(1);
+          }
+          50% {
+            transform: translateY(-6px) scale(1.015);
+          }
+        }
+
+        button {
+          transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+        }
+
+        button:hover {
+          transform: translateY(-1px);
+        }
+      `}</style>
       <aside style={styles.sidebar}>
         <div style={styles.logo}>
   <div style={{ textAlign: "center", marginBottom: 20 }}>
@@ -851,22 +880,10 @@ export default function Page() {
             </p>
             <div style={styles.landingActions}>
               <button
-                style={styles.actionButton}
+                style={styles.landingPrimaryButton}
                 onClick={() => setActiveTab("dashboard")}
               >
                 Open Dashboard
-              </button>
-              <button
-                style={styles.secondaryButton}
-                onClick={() => setActiveTab("expenses")}
-              >
-                
-              </button>
-              <button
-                style={styles.secondaryButton}
-                onClick={() => setActiveTab("income")}
-              >
-                
               </button>
             </div>
           </section>
@@ -1757,59 +1774,6 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: "center",
     alignItems: "center",
     width: "100%",
-  },
-  smallNote: {
-    color: "#48624e",
-    fontSize: 14,
-    marginBottom: 0,
-    lineHeight: 1.45,
-  },
-  grid3: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: 16,
-    marginBottom: 16,
-  },
-  card: {
-    background: "#ffffff",
-    borderRadius: 18,
-    padding: 20,
-    border: "1px solid #d5e5d5",
-    boxShadow: "0 10px 26px rgba(23, 53, 31, 0.06)",
-  },
-  panel: {
-    background: "#ffffff",
-    borderRadius: 18,
-    padding: 22,
-    border: "1px solid #d5e5d5",
-    marginBottom: 18,
-    boxShadow: "0 10px 26px rgba(23, 53, 31, 0.06)",
-  },
-  formGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
-    gap: 12,
-    marginBottom: 12,
-  },
-  input: {
-    width: "100%",
-    padding: "11px 12px",
-    borderRadius: 12,
-    border: "1px solid #bfd1bf",
-    background: "#fff",
-    boxSizing: "border-box",
-    fontSize: 15,
-  },
-  textarea: {
-    width: "100%",
-    minHeight: 105,
-    padding: "11px 12px",
-    borderRadius: 12,
-    border: "1px solid #bfd1bf",
-    marginBottom: 12,
-    boxSizing: "border-box",
-    fontSize: 15,
-    resize: "vertical",
   },
   landingPrimaryButton: {
     background: "#2f6f3e",
