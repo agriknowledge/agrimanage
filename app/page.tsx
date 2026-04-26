@@ -215,6 +215,66 @@ function guessScheduleFCategory(category: ExpenseCategory): ScheduleFCategory {
   return "Other expenses";
 }
 
+function guessExpenseCategory(text: string): ExpenseCategory {
+  const value = text.toLowerCase();
+  if (/(seed|plug|plant|bulb|tuber|root|zinnia|snapdragon|flower)/.test(value)) return "Seeds/Plants";
+  if (/(soil|compost|fertilizer|lime|peat|potting|amendment)/.test(value)) return "Soil/Fertilizer";
+  if (/(fungicide|herbicide|pesticide|insect|disease|mildew|spray)/.test(value)) return "Pest/Disease Control";
+  if (/(fuel|gas|diesel|oil|propane)/.test(value)) return "Fuel";
+  if (/(electric|water|utility|internet|phone)/.test(value)) return "Utilities";
+  if (/(labor|payroll|wage|employee|contractor|helper)/.test(value)) return "Labor";
+  if (/(repair|maintenance|parts|service|fix)/.test(value)) return "Repairs";
+  if (/(box|sleeve|label|packaging|bucket|wrap)/.test(value)) return "Packaging";
+  if (/(market|booth|vendor fee|stall)/.test(value)) return "Market Fees";
+  if (/(insurance|policy|premium)/.test(value)) return "Insurance";
+  if (/(equipment|tool|tractor|tiller|mower|cooler|greenhouse|hoop)/.test(value)) return "Equipment";
+  if (/(ad|advertising|facebook|marketing|website|sign)/.test(value)) return "Advertising";
+  if (/(mile|mileage|truck|vehicle)/.test(value)) return "Mileage";
+  return "Other";
+}
+
+function guessTaxCategory(category: ExpenseCategory): TaxCategory {
+  if (category === "Utilities") return "Utilities";
+  if (category === "Fuel") return "Fuel";
+  if (category === "Repairs") return "Repairs & Maintenance";
+  if (category === "Labor") return "Labor";
+  if (category === "Advertising") return "Advertising";
+  if (category === "Insurance") return "Insurance";
+  if (category === "Equipment") return "Equipment";
+  if (category === "Mileage") return "Mileage";
+  if (category === "Market Fees") return "Fees";
+  if (category === "Other") return "Other";
+  return "Supplies";
+}
+
+function guessIncomeCategory(text: string): IncomeCategory {
+  const value = text.toLowerCase();
+  if (/(wholesale|florist|restaurant|retail shop)/.test(value)) return "Wholesale";
+  if (/(tour|u-pick|upick|photo|photography|event)/.test(value)) return "Agritourism";
+  if (/(workshop|class|education|training)/.test(value)) return "Workshops";
+  if (/(subscription|csa|bouquet club|membership)/.test(value)) return "Subscriptions";
+  if (/(market|farmers market|sale|bouquet|flower)/.test(value)) return "Market Sales";
+  return "Other";
+}
+
+function csvEscape(value: string | number) {
+  const textValue = String(value ?? "");
+  return `"${textValue.replaceAll('"', '""')}"`;
+}
+
+function downloadCsv(filename: string, rows: Array<Array<string | number>>) {
+  const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 export default function Page() {
   const [activeTab, setActiveTab] = useState<
     | "dashboard"
@@ -269,7 +329,7 @@ export default function Page() {
     source: "",
     description: "",
     amount: 0,
-    category: "Market Sales",
+    category: incomeCategories[0],
     notes: "",
   });
 
@@ -386,7 +446,7 @@ export default function Page() {
   }, [farmNotes]);
 
   useEffect(() => {
-    localStorage.setItem("agrimanage™chat", JSON.stringify(chat));
+    localStorage.setItem("agrimanage™_chat", JSON.stringify(chat));
   }, [chat]);
 
   useEffect(() => {
@@ -465,6 +525,61 @@ export default function Page() {
     return match ? match.name : "Unknown Project";
   }
 
+
+  function exportExpensesCsv() {
+    downloadCsv("agrimanage-expenses.csv", [
+      [
+        "Date",
+        "Project",
+        "Vendor",
+        "Item",
+        "Amount",
+        "Expense Category",
+        "General Tax Category",
+        "Schedule F Category",
+        "Notes",
+      ],
+      ...filteredExpenses.map((item) => [
+        item.date,
+        projectName(item.projectId),
+        item.vendor,
+        item.item,
+        item.amount,
+        item.category,
+        item.taxCategory,
+        item.scheduleFCategory,
+        item.notes,
+      ]),
+    ]);
+  }
+
+  function exportIncomeCsv() {
+    downloadCsv("agrimanage-income.csv", [
+      ["Date", "Project", "Source", "Description", "Amount", "Income Category", "Notes"],
+      ...filteredIncome.map((item) => [
+        item.date,
+        projectName(item.projectId),
+        item.source,
+        item.description,
+        item.amount,
+        item.category,
+        item.notes,
+      ]),
+    ]);
+  }
+
+  function exportScheduleFCsv() {
+    downloadCsv("agrimanage-schedule-f-summary.csv", [
+      ["Schedule F Category", "Total"],
+      ...Object.entries(scheduleFSummary).map(([category, value]) => [category, value]),
+      ["", ""],
+      ["Total Income", totalIncome],
+      ["Total Expenses", totalExpenses],
+      ["Net", net],
+      ["Estimated Monthly Recurring", estimatedMonthlyRecurring],
+    ]);
+  }
+
   function addProject() {
     if (!projectForm.name.trim()) return;
     const newProject: Project = {
@@ -504,7 +619,23 @@ export default function Page() {
 
   function addExpense() {
     if (!expenseForm.date || !expenseForm.vendor || !expenseForm.item) return;
-    setExpenses((prev) => [{ ...expenseForm, id: uid() }, ...prev]);
+
+    const autoCategory = guessExpenseCategory(
+      `${expenseForm.vendor} ${expenseForm.item} ${expenseForm.notes}`
+    );
+    const autoTaxCategory = guessTaxCategory(autoCategory);
+    const autoScheduleFCategory = guessScheduleFCategory(autoCategory);
+
+    setExpenses((prev) => [
+      {
+        ...expenseForm,
+        id: uid(),
+        category: autoCategory,
+        taxCategory: autoTaxCategory,
+        scheduleFCategory: autoScheduleFCategory,
+      },
+      ...prev,
+    ]);
     setExpenseForm({
       id: "",
       projectId: selectedProjectId === "all" ? "" : selectedProjectId,
@@ -521,7 +652,15 @@ export default function Page() {
 
   function addIncome() {
     if (!incomeForm.date || !incomeForm.source || !incomeForm.description) return;
-    setIncome((prev) => [{ ...incomeForm, id: uid() }, ...prev]);
+
+    const autoCategory = guessIncomeCategory(
+      `${incomeForm.source} ${incomeForm.description} ${incomeForm.notes}`
+    );
+
+    setIncome((prev) => [
+      { ...incomeForm, id: uid(), category: autoCategory },
+      ...prev,
+    ]);
     setIncomeForm({
       id: "",
       projectId: selectedProjectId === "all" ? "" : selectedProjectId,
@@ -529,7 +668,7 @@ export default function Page() {
       source: "",
       description: "",
       amount: 0,
-      category: "Market Sales",
+      category: incomeCategories[0],
       notes: "",
     });
   }
@@ -678,6 +817,18 @@ export default function Page() {
           Track flower farm expenses, sales, recurring costs, records, notes, projects, and Schedule F organizer categories.
         </p>
 
+        <div style={styles.exportBar}>
+          <button style={styles.secondaryButton} onClick={exportExpensesCsv}>
+            Export Expenses CSV
+          </button>
+          <button style={styles.secondaryButton} onClick={exportIncomeCsv}>
+            Export Income CSV
+          </button>
+          <button style={styles.actionButton} onClick={exportScheduleFCsv}>
+            Export Schedule F CSV
+          </button>
+        </div>
+
         {activeTab === "dashboard" && (
           <>
             <div style={styles.panel}>
@@ -722,7 +873,12 @@ export default function Page() {
             </div>
 
             <div style={styles.panel}>
-              <h3>Schedule F Organizer Summary</h3>
+              <div style={styles.sectionHeader}>
+                <h3 style={styles.sectionTitle}>Schedule F Organizer Summary</h3>
+                <button style={styles.secondaryButton} onClick={exportScheduleFCsv}>
+                  Export CSV
+                </button>
+              </div>
               {Object.keys(scheduleFSummary).length === 0 ? (
                 <p>No Schedule F organizer data yet.</p>
               ) : (
@@ -828,7 +984,18 @@ export default function Page() {
         {activeTab === "expenses" && (
           <>
             <div style={styles.panel}>
-              <h3>Add Expense</h3>
+              <div style={styles.sectionHeader}>
+                <div>
+                  <h3 style={styles.sectionTitle}>Add Expense</h3>
+                  <p style={styles.smallNote}>
+                    Only the project uses a dropdown. AgriManage automatically assigns the expense, tax, and Schedule F organizer categories from the vendor, item, and notes.
+                  </p>
+                </div>
+                <button style={styles.secondaryButton} onClick={exportExpensesCsv}>
+                  Export Expenses CSV
+                </button>
+              </div>
+
               <div style={styles.formGrid}>
                 <select
                   style={styles.input}
@@ -862,7 +1029,7 @@ export default function Page() {
                 />
                 <input
                   style={styles.input}
-                  placeholder="Item"
+                  placeholder="Item or expense description"
                   value={expenseForm.item}
                   onChange={(e) =>
                     setExpenseForm({ ...expenseForm, item: e.target.value })
@@ -880,50 +1047,6 @@ export default function Page() {
                     })
                   }
                 />
-                <select
-                  style={styles.input}
-                  value={expenseForm.category}
-                  onChange={(e) => {
-                    const category = e.target.value as ExpenseCategory;
-                    setExpenseForm({
-                      ...expenseForm,
-                      category,
-                      scheduleFCategory: guessScheduleFCategory(category),
-                    });
-                  }}
-                >
-                  {expenseCategories.map((cat) => (
-                    <option key={cat}>{cat}</option>
-                  ))}
-                </select>
-                <select
-                  style={styles.input}
-                  value={expenseForm.taxCategory}
-                  onChange={(e) =>
-                    setExpenseForm({
-                      ...expenseForm,
-                      taxCategory: e.target.value as TaxCategory,
-                    })
-                  }
-                >
-                  {taxCategories.map((cat) => (
-                    <option key={cat}>{cat}</option>
-                  ))}
-                </select>
-                <select
-                  style={styles.input}
-                  value={expenseForm.scheduleFCategory}
-                  onChange={(e) =>
-                    setExpenseForm({
-                      ...expenseForm,
-                      scheduleFCategory: e.target.value as ScheduleFCategory,
-                    })
-                  }
-                >
-                  {scheduleFCategories.map((cat) => (
-                    <option key={cat}>{cat}</option>
-                  ))}
-                </select>
               </div>
 
               <textarea
@@ -941,7 +1064,12 @@ export default function Page() {
             </div>
 
             <div style={styles.panel}>
-              <h3>Expense Records</h3>
+              <div style={styles.sectionHeader}>
+                <h3 style={styles.sectionTitle}>Expense Records</h3>
+                <button style={styles.secondaryButton} onClick={exportExpensesCsv}>
+                  Export CSV
+                </button>
+              </div>
               {filteredExpenses.length === 0 ? (
                 <p>No expenses yet.</p>
               ) : (
@@ -976,7 +1104,18 @@ export default function Page() {
         {activeTab === "income" && (
           <>
             <div style={styles.panel}>
-              <h3>Add Income</h3>
+              <div style={styles.sectionHeader}>
+                <div>
+                  <h3 style={styles.sectionTitle}>Add Income</h3>
+                  <p style={styles.smallNote}>
+                    Only the project uses a dropdown. AgriManage automatically assigns the income category from the source, description, and notes.
+                  </p>
+                </div>
+                <button style={styles.secondaryButton} onClick={exportIncomeCsv}>
+                  Export Income CSV
+                </button>
+              </div>
+
               <div style={styles.formGrid}>
                 <select
                   style={styles.input}
@@ -1031,20 +1170,6 @@ export default function Page() {
                     })
                   }
                 />
-                <select
-                  style={styles.input}
-                  value={incomeForm.category}
-                  onChange={(e) =>
-                    setIncomeForm({
-                      ...incomeForm,
-                      category: e.target.value as IncomeCategory,
-                    })
-                  }
-                >
-                  {incomeCategories.map((cat) => (
-                    <option key={cat}>{cat}</option>
-                  ))}
-                </select>
               </div>
 
               <textarea
@@ -1062,7 +1187,12 @@ export default function Page() {
             </div>
 
             <div style={styles.panel}>
-              <h3>Income Records</h3>
+              <div style={styles.sectionHeader}>
+                <h3 style={styles.sectionTitle}>Income Records</h3>
+                <button style={styles.secondaryButton} onClick={exportIncomeCsv}>
+                  Export CSV
+                </button>
+              </div>
               {filteredIncome.length === 0 ? (
                 <p>No income yet.</p>
               ) : (
@@ -1413,12 +1543,17 @@ const styles: Record<string, React.CSSProperties> = {
   page: {
     display: "flex",
     minHeight: "100vh",
+    background: "#f3f7f0",
+    color: "#17351f",
+    fontFamily:
+      "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
   },
   sidebar: {
-    width: 260,
-    background: "#e4f0e4",
-    padding: 20,
+    width: 280,
+    background: "linear-gradient(180deg, #e4f0e4 0%, #f7fbf7 100%)",
+    padding: 22,
     borderRight: "1px solid #cfe0cf",
+    boxShadow: "8px 0 24px rgba(23, 53, 31, 0.06)",
   },
   logo: {
     fontSize: 28,
@@ -1430,47 +1565,79 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 20,
     color: "#4d6a54",
     fontSize: 14,
+    fontWeight: 700,
   },
   navButton: {
     width: "100%",
     marginBottom: 10,
     padding: "12px 14px",
-    borderRadius: 10,
+    borderRadius: 14,
     border: "1px solid #b7cdb7",
     cursor: "pointer",
     textAlign: "left",
+    fontWeight: 700,
+    boxShadow: "0 6px 14px rgba(23, 53, 31, 0.05)",
   },
   filterBox: {
     marginTop: 20,
-    padding: 12,
+    padding: 14,
     background: "#ffffff",
     border: "1px solid #d5e5d5",
-    borderRadius: 12,
+    borderRadius: 16,
+    boxShadow: "0 10px 24px rgba(23, 53, 31, 0.06)",
   },
   filterLabel: {
     fontSize: 13,
-    fontWeight: 700,
+    fontWeight: 800,
     marginBottom: 8,
     color: "#48624e",
   },
   content: {
     flex: 1,
-    padding: 24,
+    padding: 30,
+    maxWidth: 1280,
+    margin: "0 auto",
   },
   heading: {
     margin: 0,
-    fontSize: 34,
+    fontSize: 38,
     color: "#18361f",
+    letterSpacing: "-0.03em",
   },
   subheading: {
     marginTop: 8,
-    marginBottom: 24,
+    marginBottom: 18,
     color: "#48624e",
+    fontSize: 16,
+    lineHeight: 1.5,
+  },
+  exportBar: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 22,
+    padding: 14,
+    background: "#ffffff",
+    border: "1px solid #d5e5d5",
+    borderRadius: 18,
+    boxShadow: "0 10px 26px rgba(23, 53, 31, 0.06)",
+  },
+  sectionHeader: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 16,
+    flexWrap: "wrap",
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    margin: 0,
   },
   smallNote: {
     color: "#48624e",
     fontSize: 14,
     marginBottom: 0,
+    lineHeight: 1.45,
   },
   grid3: {
     display: "grid",
@@ -1480,71 +1647,81 @@ const styles: Record<string, React.CSSProperties> = {
   },
   card: {
     background: "#ffffff",
-    borderRadius: 14,
-    padding: 18,
+    borderRadius: 18,
+    padding: 20,
     border: "1px solid #d5e5d5",
+    boxShadow: "0 10px 26px rgba(23, 53, 31, 0.06)",
   },
   panel: {
     background: "#ffffff",
-    borderRadius: 14,
-    padding: 18,
+    borderRadius: 18,
+    padding: 22,
     border: "1px solid #d5e5d5",
     marginBottom: 18,
+    boxShadow: "0 10px 26px rgba(23, 53, 31, 0.06)",
   },
   formGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
     gap: 12,
     marginBottom: 12,
   },
   input: {
     width: "100%",
-    padding: 10,
-    borderRadius: 8,
+    padding: "11px 12px",
+    borderRadius: 12,
     border: "1px solid #bfd1bf",
     background: "#fff",
+    boxSizing: "border-box",
+    fontSize: 15,
   },
   textarea: {
     width: "100%",
-    minHeight: 100,
-    padding: 10,
-    borderRadius: 8,
+    minHeight: 105,
+    padding: "11px 12px",
+    borderRadius: 12,
     border: "1px solid #bfd1bf",
     marginBottom: 12,
+    boxSizing: "border-box",
+    fontSize: 15,
+    resize: "vertical",
   },
   actionButton: {
     background: "#2f6f3e",
     color: "#fff",
     border: "none",
-    borderRadius: 10,
+    borderRadius: 12,
     padding: "12px 16px",
     cursor: "pointer",
-    fontWeight: 700,
+    fontWeight: 800,
+    boxShadow: "0 8px 16px rgba(47, 111, 62, 0.18)",
   },
   secondaryButton: {
     background: "#ffffff",
     color: "#17351f",
     border: "1px solid #b7cdb7",
-    borderRadius: 10,
+    borderRadius: 12,
     padding: "10px 14px",
     cursor: "pointer",
-    fontWeight: 700,
+    fontWeight: 800,
   },
   deleteButton: {
     marginTop: 10,
     background: "#8d3131",
     color: "#fff",
     border: "none",
-    borderRadius: 8,
+    borderRadius: 10,
     padding: "8px 12px",
     cursor: "pointer",
+    fontWeight: 700,
   },
   recordCard: {
     border: "1px solid #d5e5d5",
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 16,
+    padding: 14,
     marginBottom: 12,
     background: "#fbfdfb",
+    boxShadow: "0 6px 16px rgba(23, 53, 31, 0.04)",
   },
   rowBetween: {
     display: "flex",
@@ -1574,15 +1751,16 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 12,
     maxHeight: 420,
     overflowY: "auto",
-    padding: 8,
+    padding: 12,
     background: "#f7fbf7",
-    borderRadius: 12,
+    borderRadius: 16,
     border: "1px solid #d5e5d5",
   },
   chatBubble: {
     maxWidth: "80%",
     padding: 12,
-    borderRadius: 12,
+    borderRadius: 14,
     border: "1px solid #d5e5d5",
+    lineHeight: 1.45,
   },
 };
