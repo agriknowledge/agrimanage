@@ -91,6 +91,7 @@ type IncomeRecord = {
   description: string;
   amount: number;
   category: IncomeCategory;
+  scheduleFCategory: ScheduleFCategory;
   notes: string;
 };
 
@@ -277,6 +278,7 @@ function downloadCsv(filename: string, rows: Array<Array<string | number>>) {
 
 export default function Page() {
   const [activeTab, setActiveTab] = useState<
+    | "home"
     | "dashboard"
     | "projects"
     | "expenses"
@@ -284,7 +286,7 @@ export default function Page() {
     | "recurring"
     | "notes"
     | "ai"
-  >("dashboard");
+  >("home");
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
@@ -330,6 +332,7 @@ export default function Page() {
     description: "",
     amount: 0,
     category: incomeCategories[0],
+    scheduleFCategory: "Other expenses",
     notes: "",
   });
 
@@ -387,6 +390,7 @@ export default function Page() {
         (item: Partial<IncomeRecord>) => ({
           ...item,
           projectId: item.projectId || "",
+          scheduleFCategory: item.scheduleFCategory || "Other expenses",
         })
       );
       setIncome(parsed);
@@ -555,7 +559,7 @@ export default function Page() {
 
   function exportIncomeCsv() {
     downloadCsv("agrimanage-income.csv", [
-      ["Date", "Project", "Source", "Description", "Amount", "Income Category", "Notes"],
+      ["Date", "Project", "Source", "Description", "Amount", "Income Category", "Schedule F Category", "Notes"],
       ...filteredIncome.map((item) => [
         item.date,
         projectName(item.projectId),
@@ -563,6 +567,7 @@ export default function Page() {
         item.description,
         item.amount,
         item.category,
+        item.scheduleFCategory,
         item.notes,
       ]),
     ]);
@@ -624,15 +629,12 @@ export default function Page() {
       `${expenseForm.vendor} ${expenseForm.item} ${expenseForm.notes}`
     );
     const autoTaxCategory = guessTaxCategory(autoCategory);
-    const autoScheduleFCategory = guessScheduleFCategory(autoCategory);
-
     setExpenses((prev) => [
       {
         ...expenseForm,
         id: uid(),
         category: autoCategory,
         taxCategory: autoTaxCategory,
-        scheduleFCategory: autoScheduleFCategory,
       },
       ...prev,
     ]);
@@ -669,6 +671,7 @@ export default function Page() {
       description: "",
       amount: 0,
       category: incomeCategories[0],
+      scheduleFCategory: "Other expenses",
       notes: "",
     });
   }
@@ -773,6 +776,7 @@ export default function Page() {
 </div>
 
         {[
+          ["home", "Home"],
           ["dashboard", "Dashboard"],
           ["projects", "Projects"],
           ["expenses", "Expenses"],
@@ -828,6 +832,43 @@ export default function Page() {
             Export Schedule F CSV
           </button>
         </div>
+
+        {activeTab === "home" && (
+          <section style={styles.landingPanel}>
+            <img
+              src="/agrimanage-logo.png"
+              alt="AgriManage logo"
+              style={styles.landingLogo}
+            />
+            <h2 style={styles.landingTitle}>AgriManage™</h2>
+            <p style={styles.landingStatement}>
+              Built by a Veteran Farmer for other Farmers
+            </p>
+            <p style={styles.landingText}>
+              Track expenses, income, recurring costs, farm notes, projects, and Schedule F organizer categories in one clean farm management dashboard.
+            </p>
+            <div style={styles.landingActions}>
+              <button
+                style={styles.actionButton}
+                onClick={() => setActiveTab("dashboard")}
+              >
+                Open Dashboard
+              </button>
+              <button
+                style={styles.secondaryButton}
+                onClick={() => setActiveTab("expenses")}
+              >
+                Add Expense
+              </button>
+              <button
+                style={styles.secondaryButton}
+                onClick={() => setActiveTab("income")}
+              >
+                Add Income
+              </button>
+            </div>
+          </section>
+        )}
 
         {activeTab === "dashboard" && (
           <>
@@ -988,7 +1029,7 @@ export default function Page() {
                 <div>
                   <h3 style={styles.sectionTitle}>Add Expense</h3>
                   <p style={styles.smallNote}>
-                    Only the project uses a dropdown. AgriManage automatically assigns the expense, tax, and Schedule F organizer categories from the vendor, item, and notes.
+                    Choose the project and Schedule F category. AgriManage still automatically organizes the general expense and tax categories from the vendor, item, and notes.
                   </p>
                 </div>
                 <button style={styles.secondaryButton} onClick={exportExpensesCsv}>
@@ -1047,6 +1088,22 @@ export default function Page() {
                     })
                   }
                 />
+                <select
+                  style={styles.input}
+                  value={expenseForm.scheduleFCategory}
+                  onChange={(e) =>
+                    setExpenseForm({
+                      ...expenseForm,
+                      scheduleFCategory: e.target.value as ScheduleFCategory,
+                    })
+                  }
+                >
+                  {scheduleFCategories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <textarea
@@ -1108,7 +1165,7 @@ export default function Page() {
                 <div>
                   <h3 style={styles.sectionTitle}>Add Income</h3>
                   <p style={styles.smallNote}>
-                    Only the project uses a dropdown. AgriManage automatically assigns the income category from the source, description, and notes.
+                    Choose the project and Schedule F category. AgriManage still automatically assigns the income category from the source, description, and notes.
                   </p>
                 </div>
                 <button style={styles.secondaryButton} onClick={exportIncomeCsv}>
@@ -1170,6 +1227,22 @@ export default function Page() {
                     })
                   }
                 />
+                <select
+                  style={styles.input}
+                  value={incomeForm.scheduleFCategory}
+                  onChange={(e) =>
+                    setIncomeForm({
+                      ...incomeForm,
+                      scheduleFCategory: e.target.value as ScheduleFCategory,
+                    })
+                  }
+                >
+                  {scheduleFCategories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <textarea
@@ -1205,7 +1278,8 @@ export default function Page() {
                     <div>{item.date}</div>
                     <div>{item.source}</div>
                     <div>Project: {projectName(item.projectId)}</div>
-                    <div>{item.category}</div>
+                    <div>Income Category: {item.category}</div>
+                    <div>Schedule F: {item.scheduleFCategory}</div>
                     {item.notes && <div>Notes: {item.notes}</div>}
                     <button
                       style={styles.deleteButton}
@@ -1632,6 +1706,51 @@ const styles: Record<string, React.CSSProperties> = {
   },
   sectionTitle: {
     margin: 0,
+  },
+  landingPanel: {
+    minHeight: "calc(100vh - 180px)",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center",
+    background: "linear-gradient(135deg, #ffffff 0%, #f0f8ef 100%)",
+    border: "1px solid #d5e5d5",
+    borderRadius: 26,
+    padding: "48px 28px",
+    boxShadow: "0 18px 42px rgba(23, 53, 31, 0.08)",
+  },
+  landingLogo: {
+    width: 220,
+    maxWidth: "70%",
+    height: "auto",
+    objectFit: "contain",
+    marginBottom: 20,
+  },
+  landingTitle: {
+    margin: 0,
+    fontSize: 44,
+    color: "#18361f",
+    letterSpacing: "-0.04em",
+  },
+  landingStatement: {
+    margin: "14px 0 0",
+    fontSize: 24,
+    fontWeight: 800,
+    color: "#2f6f3e",
+  },
+  landingText: {
+    maxWidth: 720,
+    margin: "16px auto 26px",
+    color: "#48624e",
+    fontSize: 17,
+    lineHeight: 1.6,
+  },
+  landingActions: {
+    display: "flex",
+    gap: 12,
+    flexWrap: "wrap",
+    justifyContent: "center",
   },
   smallNote: {
     color: "#48624e",
