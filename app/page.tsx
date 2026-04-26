@@ -821,17 +821,19 @@ export default function Page() {
           Track flower farm expenses, sales, recurring costs, records, notes, projects, and Schedule F organizer categories.
         </p>
 
-        <div style={styles.exportBar}>
-          <button style={styles.secondaryButton} onClick={exportExpensesCsv}>
-            Export Expenses CSV
-          </button>
-          <button style={styles.secondaryButton} onClick={exportIncomeCsv}>
-            Export Income CSV
-          </button>
-          <button style={styles.actionButton} onClick={exportScheduleFCsv}>
-            Export Schedule F CSV
-          </button>
-        </div>
+        {activeTab !== "home" && (
+          <div style={styles.exportBar}>
+            <button style={styles.secondaryButton} onClick={exportExpensesCsv}>
+              Export Expenses CSV
+            </button>
+            <button style={styles.secondaryButton} onClick={exportIncomeCsv}>
+              Export Income CSV
+            </button>
+            <button style={styles.actionButton} onClick={exportScheduleFCsv}>
+              Export Schedule F CSV
+            </button>
+          </div>
+        )}
 
         {activeTab === "home" && (
           <section style={styles.landingPanel}>
