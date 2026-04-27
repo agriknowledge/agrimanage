@@ -870,7 +870,7 @@ export default function Page() {
               <div>
                 <h1 style={styles.heading}>AgriManage™</h1>
                 <p style={styles.subheading}>
-                  Track flower farm expenses, sales, recurring costs, records,
+                  Track farm expenses, sales, recurring costs, records,
                   notes, projects, and Schedule F organizer categories.
                 </p>
               </div>
