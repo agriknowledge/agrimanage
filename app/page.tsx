@@ -279,6 +279,7 @@ export default function Page() {
 
   const [question, setQuestion] = useState("");
   const [loadingAI, setLoadingAI] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const [projectForm, setProjectForm] = useState({
     name: "",
@@ -331,6 +332,17 @@ export default function Page() {
     type: "General",
     note: "",
   });
+
+  useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth <= 820);
+    }
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     const storedProjects = localStorage.getItem("agrimanage_projects");
@@ -747,7 +759,7 @@ export default function Page() {
   ];
 
   return (
-    <main style={styles.page}>
+    <main style={isMobile ? styles.pageMobile : styles.page}>
       <style jsx global>{`
         @keyframes fadeInLanding {
           from {
@@ -782,7 +794,7 @@ export default function Page() {
         }
       `}</style>
 
-      <aside style={styles.sidebar}>
+      <aside style={isMobile ? styles.sidebarMobile : styles.sidebar}>
         <div style={styles.sidebarLogoBox}>
           <img
             src="/agrimanage-logo.png"
@@ -792,7 +804,6 @@ export default function Page() {
             style={styles.sidebarLogoImage}
           />
           <div style={styles.sidebarTitle}>AgriManage™</div>
-          <div style={styles.tagline}>Flower Farm Manager</div>
         </div>
 
         {navItems.map(([key, label]) => (
@@ -800,7 +811,7 @@ export default function Page() {
             key={key}
             onClick={() => setActiveTab(key)}
             style={{
-              ...styles.navButton,
+              ...(isMobile ? styles.navButtonMobile : styles.navButton),
               background: activeTab === key ? "#2f6f3e" : "#ffffff",
               color: activeTab === key ? "#ffffff" : "#17351f",
             }}
@@ -826,21 +837,21 @@ export default function Page() {
         </div>
       </aside>
 
-      <section style={styles.content}>
+      <section style={isMobile ? styles.contentMobile : styles.content}>
         {activeTab === "home" ? (
-          <section style={styles.landingCard}>
+          <section style={isMobile ? styles.landingCardMobile : styles.landingCard}>
             <img
               src="/agrimanage-logo.png"
               alt="AgriManage logo"
               width={230}
               height={130}
-              style={styles.landingLogo}
+              style={isMobile ? styles.landingLogoMobile : styles.landingLogo}
             />
-            <h1 style={styles.landingTitle}>AgriManage™</h1>
-            <p style={styles.landingStatement}>
+            <h1 style={isMobile ? styles.landingTitleMobile : styles.landingTitle}>AgriManage™</h1>
+            <p style={isMobile ? styles.landingStatementMobile : styles.landingStatement}>
               Built by a Veteran Farmer for other Farmers
             </p>
-            <p style={styles.landingSubtext}>
+            <p style={isMobile ? styles.landingSubtextMobile : styles.landingSubtext}>
               Track farm projects, expenses, income, recurring costs, notes, and
               Schedule F organizer categories in one simple place.
             </p>
@@ -855,7 +866,7 @@ export default function Page() {
           </section>
         ) : (
           <>
-            <header style={styles.topHeader}>
+            <header style={isMobile ? styles.topHeaderMobile : styles.topHeader}>
               <div>
                 <h1 style={styles.heading}>AgriManage™</h1>
                 <p style={styles.subheading}>
@@ -864,7 +875,7 @@ export default function Page() {
                 </p>
               </div>
 
-              <div style={styles.exportActions}>
+              <div style={isMobile ? styles.exportActionsMobile : styles.exportActions}>
                 <button style={styles.secondaryButton} onClick={exportExpensesCSV}>
                   Export Expenses CSV
                 </button>
@@ -892,13 +903,13 @@ export default function Page() {
                   </p>
                 </div>
 
-                <div style={styles.grid3}>
+                <div style={isMobile ? styles.grid3Mobile : styles.grid3}>
                   <StatCard title="Total Income" value={money(totalIncome)} />
                   <StatCard title="Total Expenses" value={money(totalExpenses)} />
                   <StatCard title="Net" value={money(net)} />
                 </div>
 
-                <div style={styles.grid3}>
+                <div style={isMobile ? styles.grid3Mobile : styles.grid3}>
                   <StatCard
                     title="Monthly Recurring Estimate"
                     value={money(estimatedMonthlyRecurring)}
@@ -941,7 +952,7 @@ export default function Page() {
               <>
                 <div style={styles.panel}>
                   <h3>Add Project</h3>
-                  <div style={styles.formGrid}>
+                  <div style={isMobile ? styles.formGridMobile : styles.formGrid}>
                     <input
                       style={styles.input}
                       placeholder="Project name"
@@ -1029,7 +1040,7 @@ export default function Page() {
               <>
                 <div style={styles.panel}>
                   <h3>Add Expense</h3>
-                  <div style={styles.formGrid}>
+                  <div style={isMobile ? styles.formGridMobile : styles.formGrid}>
                     <select
                       style={styles.input}
                       value={expenseForm.projectId}
@@ -1154,7 +1165,7 @@ export default function Page() {
               <>
                 <div style={styles.panel}>
                   <h3>Add Income</h3>
-                  <div style={styles.formGrid}>
+                  <div style={isMobile ? styles.formGridMobile : styles.formGrid}>
                     <select
                       style={styles.input}
                       value={incomeForm.projectId}
@@ -1280,7 +1291,7 @@ export default function Page() {
               <>
                 <div style={styles.panel}>
                   <h3>Add Recurring Cost</h3>
-                  <div style={styles.formGrid}>
+                  <div style={isMobile ? styles.formGridMobile : styles.formGrid}>
                     <select
                       style={styles.input}
                       value={recurringForm.projectId}
@@ -1418,7 +1429,7 @@ export default function Page() {
               <>
                 <div style={styles.panel}>
                   <h3>Add Farm Note</h3>
-                  <div style={styles.formGrid}>
+                  <div style={isMobile ? styles.formGridMobile : styles.formGrid}>
                     <select
                       style={styles.input}
                       value={noteForm.projectId}
@@ -1530,7 +1541,7 @@ export default function Page() {
                     <div
                       key={i}
                       style={{
-                        ...styles.chatBubble,
+                        ...(isMobile ? styles.chatBubbleMobile : styles.chatBubble),
                         alignSelf:
                           msg.role === "user" ? "flex-end" : "flex-start",
                         background: msg.role === "user" ? "#dff1e3" : "#ffffff",
@@ -1585,11 +1596,28 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily:
       "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
   },
+  pageMobile: {
+    display: "flex",
+    flexDirection: "column",
+    minHeight: "100vh",
+    background: "#f3f7f0",
+    color: "#17351f",
+    fontFamily:
+      "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
+  },
   sidebar: {
     width: 280,
     background: "#e4f0e4",
     padding: 20,
     borderRight: "1px solid #cfe0cf",
+    flexShrink: 0,
+  },
+  sidebarMobile: {
+    width: "100%",
+    background: "#e4f0e4",
+    padding: 14,
+    borderRight: "none",
+    borderBottom: "1px solid #cfe0cf",
     flexShrink: 0,
   },
   sidebarLogoBox: {
@@ -1622,6 +1650,18 @@ const styles: Record<string, React.CSSProperties> = {
     textAlign: "left",
     fontWeight: 700,
   },
+  navButtonMobile: {
+    width: "48%",
+    marginBottom: 8,
+    marginRight: "2%",
+    padding: "11px 10px",
+    borderRadius: 12,
+    border: "1px solid #b7cdb7",
+    cursor: "pointer",
+    textAlign: "center",
+    fontWeight: 800,
+    fontSize: 13,
+  },
   filterBox: {
     marginTop: 20,
     padding: 12,
@@ -1640,6 +1680,11 @@ const styles: Record<string, React.CSSProperties> = {
     padding: 28,
     overflow: "auto",
   },
+  contentMobile: {
+    flex: 1,
+    padding: 12,
+    overflow: "auto",
+  },
   landingCard: {
     background: "linear-gradient(135deg, #ffffff 0%, #eef7ee 100%)",
     borderRadius: 28,
@@ -1654,6 +1699,20 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: "0 20px 50px rgba(23, 53, 31, 0.10)",
     animation: "fadeInLanding 700ms ease-out both",
   },
+  landingCardMobile: {
+    background: "linear-gradient(135deg, #ffffff 0%, #eef7ee 100%)",
+    borderRadius: 22,
+    padding: "34px 18px",
+    border: "1px solid #d5e5d5",
+    textAlign: "center",
+    minHeight: "72vh",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "0 12px 34px rgba(23, 53, 31, 0.10)",
+    animation: "fadeInLanding 700ms ease-out both",
+  },
   landingLogo: {
     width: 230,
     height: "auto",
@@ -1662,9 +1721,23 @@ const styles: Record<string, React.CSSProperties> = {
     animation: "logoFloat 4.5s ease-in-out infinite",
     filter: "drop-shadow(0 10px 20px rgba(23, 53, 31, 0.14))",
   },
+  landingLogoMobile: {
+    width: 170,
+    height: "auto",
+    objectFit: "contain",
+    marginBottom: 16,
+    animation: "logoFloat 4.5s ease-in-out infinite",
+    filter: "drop-shadow(0 8px 16px rgba(23, 53, 31, 0.12))",
+  },
   landingTitle: {
     margin: 0,
     fontSize: 48,
+    fontWeight: 950,
+    color: "#17351f",
+  },
+  landingTitleMobile: {
+    margin: 0,
+    fontSize: 34,
     fontWeight: 950,
     color: "#17351f",
   },
@@ -1675,6 +1748,14 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 850,
     color: "#2f6f3e",
   },
+  landingStatementMobile: {
+    marginTop: 12,
+    marginBottom: 0,
+    fontSize: 19,
+    lineHeight: 1.3,
+    fontWeight: 850,
+    color: "#2f6f3e",
+  },
   landingSubtext: {
     maxWidth: 720,
     marginTop: 16,
@@ -1682,6 +1763,14 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#48624e",
     fontSize: 17,
     lineHeight: 1.6,
+  },
+  landingSubtextMobile: {
+    maxWidth: 360,
+    marginTop: 14,
+    marginBottom: 24,
+    color: "#48624e",
+    fontSize: 15,
+    lineHeight: 1.5,
   },
   landingActions: {
     display: "flex",
@@ -1710,11 +1799,23 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 24,
     flexWrap: "wrap",
   },
+  topHeaderMobile: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 14,
+    marginBottom: 18,
+  },
   exportActions: {
     display: "flex",
     gap: 10,
     flexWrap: "wrap",
     justifyContent: "flex-end",
+  },
+  exportActionsMobile: {
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: 8,
+    width: "100%",
   },
   heading: {
     margin: 0,
@@ -1738,6 +1839,12 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 16,
     marginBottom: 16,
   },
+  grid3Mobile: {
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: 12,
+    marginBottom: 12,
+  },
   card: {
     background: "#ffffff",
     borderRadius: 16,
@@ -1757,6 +1864,12 @@ const styles: Record<string, React.CSSProperties> = {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
     gap: 12,
+    marginBottom: 12,
+  },
+  formGridMobile: {
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: 10,
     marginBottom: 12,
   },
   input: {
@@ -1848,6 +1961,12 @@ const styles: Record<string, React.CSSProperties> = {
   },
   chatBubble: {
     maxWidth: "80%",
+    padding: 12,
+    borderRadius: 12,
+    border: "1px solid #d5e5d5",
+  },
+  chatBubbleMobile: {
+    maxWidth: "96%",
     padding: 12,
     borderRadius: 12,
     border: "1px solid #d5e5d5",
